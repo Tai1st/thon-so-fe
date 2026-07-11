@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { Map as LeafletMap, Polygon } from 'leaflet';
-import type { PublicCommuneVillage } from '@/lib/types';
+import type { AdministrativeUnitItem, PublicCommuneVillage } from '@/lib/types';
 
 // Bản đồ công khai ở domain gốc — theo đúng phong cách tra-cuu.html gốc:
 // MỖI thôn 1 màu riêng (kể cả thôn chưa có cổng thông tin), lấy đúng bảng
@@ -33,18 +33,47 @@ function householdPinIcon(L: typeof import('leaflet')) {
   return L.divIcon({ className: 'household-pin', html, iconSize: [20, 26], iconAnchor: [10, 26], popupAnchor: [0, -22] });
 }
 
+// Marker trụ sở cơ quan nhà nước cấp xã — pin màu xanh dương với đúng
+// ảnh/logo riêng của từng cơ quan (Đảng ủy, UBND, MTTQ, Công an...) gắn
+// tròn bên trong, giống .pin-marker-logo trong tra-cuu.html gốc. Nếu đơn
+// vị không có logoUrl thì lùi về icon tòa nhà chung.
+function administrativeUnitIcon(L: typeof import('leaflet'), logoUrl: string | null) {
+  const color = '#1d4ed8';
+  const badge = logoUrl
+    ? `<defs><clipPath id="logoClip"><circle cx="15" cy="14.5" r="9.5"></circle></clipPath></defs>` +
+      `<image href="${logoUrl}" x="5.5" y="5" width="19" height="19" preserveAspectRatio="xMidYMid slice" clip-path="url(#logoClip)"></image>`
+    : `<g transform="translate(7,7) scale(0.67)" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">` +
+      `<path d="M3 21h18"></path><path d="M5 21V9l7-5 7 5v12"></path><path d="M9 21v-6h6v6"></path>` +
+      `</g>`;
+  const html =
+    `<svg width="24" height="30" viewBox="0 0 30 38" xmlns="http://www.w3.org/2000/svg">` +
+    `<path d="M15 0C6.716 0 0 6.716 0 15c0 10.5 15 23 15 23s15-12.5 15-23C30 6.716 23.284 0 15 0z" fill="${color}"></path>` +
+    `<circle cx="15" cy="14.5" r="10" fill="#fff"></circle>` +
+    badge +
+    `</svg>`;
+  return L.divIcon({ className: 'admin-unit-pin', html, iconSize: [24, 30], iconAnchor: [12, 30], popupAnchor: [0, -26] });
+}
+
 export function DirectoryLeaflet({
   villages,
+  administrativeUnits,
   selectedName,
   onSelect,
+  showHouseholds,
+  showAdminUnits,
 }: {
   villages: PublicCommuneVillage[];
+  administrativeUnits: AdministrativeUnitItem[];
   selectedName: string | null;
   onSelect: (name: string) => void;
+  showHouseholds: boolean;
+  showAdminUnits: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const polysRef = useRef<Map<string, Polygon>>(new Map());
+  const householdsLayerRef = useRef<import('leaflet').LayerGroup | null>(null);
+  const adminUnitsLayerRef = useRef<import('leaflet').LayerGroup | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,15 +109,27 @@ export function DirectoryLeaflet({
         maxZoom: 17,
         attribution: '&copy; OpenStreetMap contributors, SRTM | &copy; OpenTopoMap',
       });
-
       streets.addTo(map);
-      L.control
-        .layers(
-          { 'Bản đồ': streets, 'Vệ tinh': satellite, 'Địa hình': terrain },
-          undefined,
-          { position: 'topright' },
-        )
-        .addTo(map);
+
+      // Nhóm layer bật/tắt riêng — "Cư dân" (marker GPS hộ gia đình) và
+      // "Cơ quan nhà nước" (trụ sở xã), điều khiển qua nút bấm ở
+      // CommuneSection (showHouseholds/showAdminUnits) thay vì chỉ qua ô
+      // checkbox ẩn trong control góc bản đồ, để dễ thấy/dễ bấm hơn.
+      const householdsLayer = L.layerGroup();
+      const adminUnitsLayer = L.layerGroup();
+      householdsLayerRef.current = householdsLayer;
+      adminUnitsLayerRef.current = adminUnitsLayer;
+
+      administrativeUnits.forEach((unit) => {
+        L.marker([unit.lat, unit.lng], { icon: administrativeUnitIcon(L, unit.logoUrl) })
+          .addTo(adminUnitsLayer)
+          .bindPopup(
+            `<b>${unit.name}</b>` +
+              (unit.mapsUrl
+                ? `<br/><a href="${unit.mapsUrl}" target="_blank" rel="noopener noreferrer">Xem trên Google Maps</a>`
+                : ''),
+          );
+      });
 
       const allBounds: [number, number][] = [];
       villages.forEach((village, index) => {
@@ -111,10 +152,17 @@ export function DirectoryLeaflet({
 
         village.households.forEach((h) => {
           L.marker([h.lat, h.lng], { icon: householdPinIcon(L) })
-            .addTo(map)
+            .addTo(householdsLayer)
             .bindTooltip(h.name, { direction: 'top', offset: [0, -22] });
         });
       });
+
+      if (showHouseholds) householdsLayer.addTo(map);
+      if (showAdminUnits) adminUnitsLayer.addTo(map);
+
+      L.control
+        .layers({ 'Bản đồ': streets, 'Vệ tinh': satellite, 'Địa hình': terrain }, undefined, { position: 'topright' })
+        .addTo(map);
 
       if (allBounds.length) {
         map.fitBounds(allBounds, { padding: [12, 12] });
@@ -129,7 +177,25 @@ export function DirectoryLeaflet({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [villages]);
+  }, [villages, administrativeUnits]);
+
+  // Bật/tắt 2 lớp mà không phải build lại toàn bộ bản đồ (giữ nguyên vị
+  // trí/zoom hiện tại của người xem).
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = householdsLayerRef.current;
+    if (!map || !layer) return;
+    if (showHouseholds) map.addLayer(layer);
+    else map.removeLayer(layer);
+  }, [showHouseholds]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = adminUnitsLayerRef.current;
+    if (!map || !layer) return;
+    if (showAdminUnits) map.addLayer(layer);
+    else map.removeLayer(layer);
+  }, [showAdminUnits]);
 
   // Cập nhật viền polygon đang chọn mà không phải build lại toàn bộ bản đồ.
   useEffect(() => {

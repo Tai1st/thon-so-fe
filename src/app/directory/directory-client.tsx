@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import type { PublicCommune, PublicCommuneVillage } from '@/lib/types';
+import type { AdministrativeUnitItem, PublicCommune, PublicCommuneVillage } from '@/lib/types';
 
 const DirectoryLeaflet = dynamic(() => import('./directory-leaflet').then((m) => m.DirectoryLeaflet), { ssr: false });
 
@@ -11,7 +11,13 @@ const DirectoryLeaflet = dynamic(() => import('./directory-leaflet').then((m) =>
 // thương hiệu, ô tìm kiếm có gợi ý, layout bản đồ + 2 panel bên phải
 // (Chi tiết / Danh sách), dữ liệu thật lấy từ Commune (nhập KMZ qua
 // superadmin) thay cho mảng REGIONS tĩnh của bản mẫu.
-export function DirectoryClient({ communes }: { communes: PublicCommune[] }) {
+export function DirectoryClient({
+  communes,
+  administrativeUnits,
+}: {
+  communes: PublicCommune[];
+  administrativeUnits: AdministrativeUnitItem[];
+}) {
   if (communes.length === 0) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-stone-50 px-4 text-center">
@@ -39,15 +45,23 @@ export function DirectoryClient({ communes }: { communes: PublicCommune[] }) {
           'radial-gradient(circle at 18% 12%, rgba(22,163,74,.10), transparent 30%), radial-gradient(circle at 82% 6%, rgba(14,165,233,.09), transparent 28%), linear-gradient(180deg, #f5fbf7 0%, #eef8f1 42%, #e8f5ef 100%)',
       }}
     >
-      <CommuneSection commune={commune} />
+      <CommuneSection commune={commune} administrativeUnits={administrativeUnits} />
     </div>
   );
 }
 
-function CommuneSection({ commune }: { commune: PublicCommune }) {
+function CommuneSection({
+  commune,
+  administrativeUnits,
+}: {
+  commune: PublicCommune;
+  administrativeUnits: AdministrativeUnitItem[];
+}) {
   const [query, setQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [showHouseholds, setShowHouseholds] = useState(true);
+  const [showAdminUnits, setShowAdminUnits] = useState(true);
 
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -130,9 +144,40 @@ function CommuneSection({ commune }: { commune: PublicCommune }) {
           </div>
         </div>
 
+        {/* Bật/tắt lớp hiển thị trên bản đồ */}
+        <div className="mb-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowHouseholds((v) => !v)}
+            className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-colors ${
+              showHouseholds ? 'border-[#9c3000] bg-[#fff7ed] text-[#9c3000]' : 'border-stone-200 bg-white text-stone-400'
+            }`}
+          >
+            <i className={`fa-solid ${showHouseholds ? 'fa-eye' : 'fa-eye-slash'}`} />
+            Dân cư
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAdminUnits((v) => !v)}
+            className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-colors ${
+              showAdminUnits ? 'border-blue-700 bg-blue-50 text-blue-700' : 'border-stone-200 bg-white text-stone-400'
+            }`}
+          >
+            <i className={`fa-solid ${showAdminUnits ? 'fa-eye' : 'fa-eye-slash'}`} />
+            Cơ quan nhà nước
+          </button>
+        </div>
+
         {/* Bản đồ + panel */}
         <div className="grid grid-cols-1 overflow-hidden rounded-[10px] border border-stone-200 bg-white shadow-[0_5px_16px_rgba(15,23,42,.06)] lg:grid-cols-[minmax(0,1fr)_380px]">
-          <DirectoryLeaflet villages={commune.villages} selectedName={selectedName} onSelect={selectVillage} />
+          <DirectoryLeaflet
+            villages={commune.villages}
+            administrativeUnits={administrativeUnits}
+            selectedName={selectedName}
+            onSelect={selectVillage}
+            showHouseholds={showHouseholds}
+            showAdminUnits={showAdminUnits}
+          />
 
           <aside className="border-t border-stone-200 lg:border-l lg:border-t-0">
             <section>

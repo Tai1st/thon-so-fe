@@ -192,3 +192,11 @@ export interface PublicCommune {
   name: string;
   villages: PublicCommuneVillage[];
 }
+
+export interface AdministrativeUnitItem {
+  name: string;
+  logoUrl: string | null;
+  lat: number;
+  lng: number;
+  mapsUrl: string | null;
+}
