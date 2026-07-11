@@ -1,0 +1,440 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ClientApiError } from '@/lib/client-api';
+import type { TenantRow } from './page';
+import type { CommuneDetail, CommuneListItem } from '@/lib/types';
+
+// Dùng chung clientApi() nhưng trỏ tới /api/superadmin-backend/* (không
+// phải /api/backend/*) — 2 proxy khác nhau vì cookie khác nhau (session
+// vs superadmin_session). Truyền path đầy đủ qua clientApi's path param.
+async function superAdminClientApi<T>(
+  path: string,
+  options: { method?: 'GET' | 'POST' | 'PATCH'; body?: unknown } = {},
+): Promise<T> {
+  const res = await fetch(`/api/superadmin-backend/${path}`, {
+    method: options.method || 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ClientApiError(res.status, data.message || 'Lỗi gọi API.');
+  return data as T;
+}
+
+export function SuperAdminDashboard({
+  initialTenants,
+  communes,
+}: {
+  initialTenants: TenantRow[];
+  communes: CommuneListItem[];
+}) {
+  const router = useRouter();
+  const [tenants, setTenants] = useState(initialTenants);
+  const [showCreate, setShowCreate] = useState(false);
+  const [assigningTenant, setAssigningTenant] = useState<TenantRow | null>(null);
+  const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const communeById = new Map(communes.map((c) => [c._id, c]));
+
+  function showNotice(type: 'success' | 'error', text: string) {
+    setNotice({ type, text });
+    setTimeout(() => setNotice(null), 4000);
+  }
+
+  async function refresh() {
+    const res = await superAdminClientApi<TenantRow[]>('superadmin/tenants');
+    setTenants(res);
+  }
+
+  async function toggleArchive(tenant: TenantRow) {
+    try {
+      await superAdminClientApi(`superadmin/tenants/${tenant._id}`, {
+        method: 'PATCH',
+        body: { archived: !tenant.archivedAt },
+      });
+      await refresh();
+      showNotice('success', tenant.archivedAt ? `Đã mở khóa "${tenant.name}".` : `Đã khóa "${tenant.name}".`);
+    } catch (err) {
+      showNotice('error', err instanceof ClientApiError ? err.message : 'Không thể cập nhật tenant.');
+    }
+  }
+
+  async function handleLogout() {
+    await fetch('/api/superadmin/auth/logout', { method: 'POST' });
+    router.push('/superadmin/login');
+    router.refresh();
+  }
+
+  return (
+    <div className="min-h-screen bg-stone-950 text-stone-100">
+      <div className="flex items-center justify-between border-b border-stone-800 bg-stone-900 p-6">
+        <div>
+          <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-emerald-500">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" /> Quản trị hệ thống
+          </p>
+          <h1 className="font-serif text-lg font-bold uppercase tracking-wide text-white">Danh sách Tenant (Thôn)</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/superadmin/communes"
+            className="rounded-xl border border-stone-700 px-3.5 py-1.5 text-xs font-semibold text-stone-300 hover:border-stone-500"
+          >
+            <i className="fa-solid fa-map mr-1" /> Quản lý Xã (KMZ)
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 rounded-xl bg-red-950/50 px-3.5 py-1.5 text-xs font-bold text-red-400 transition-all hover:bg-red-600 hover:text-white"
+          >
+            <i className="fa-solid fa-right-from-bracket" /> Đăng xuất
+          </button>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-5xl space-y-6 p-6">
+        {notice && (
+          <div
+            className={`rounded-xl border p-4 text-xs ${
+              notice.type === 'success'
+                ? 'border-emerald-800 bg-emerald-950/50 text-emerald-400'
+                : 'border-red-800 bg-red-950/50 text-red-400'
+            }`}
+          >
+            {notice.text}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-stone-400">{tenants.length} tenant</span>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-500"
+          >
+            <i className="fa-solid fa-plus mr-1" /> Tạo tenant mới
+          </button>
+        </div>
+
+        <div className="overflow-x-auto rounded-xl border border-stone-800 bg-stone-900">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-stone-800 text-stone-400">
+                <th className="p-4 font-semibold">Tên thôn</th>
+                <th className="p-4 font-semibold">Slug (subdomain)</th>
+                <th className="p-4 font-semibold">Thuộc xã</th>
+                <th className="p-4 font-semibold text-center">Tài khoản</th>
+                <th className="p-4 font-semibold text-center">Nhân khẩu</th>
+                <th className="p-4 font-semibold text-center">Trạng thái</th>
+                <th className="p-4 text-right font-semibold">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-800">
+              {tenants.map((t) => (
+                <tr key={t._id} className="hover:bg-stone-800/50">
+                  <td className="p-4 font-bold text-white">{t.name}</td>
+                  <td className="p-4 font-mono text-stone-400">{t.slug}</td>
+                  <td className="p-4 text-stone-300">
+                    {t.communeId && communeById.has(t.communeId) ? (
+                      communeById.get(t.communeId)!.name
+                    ) : (
+                      <span className="text-stone-600">Chưa gán</span>
+                    )}
+                  </td>
+                  <td className="p-4 text-center text-stone-300">{t.accountCount}</td>
+                  <td className="p-4 text-center text-stone-300">{t.residentCount}</td>
+                  <td className="p-4 text-center">
+                    {t.archivedAt ? (
+                      <span className="rounded-full bg-red-950/50 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wider text-red-400">
+                        Đã khóa
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-emerald-950/50 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wider text-emerald-400">
+                        Đang hoạt động
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setAssigningTenant(t)}
+                        className="rounded bg-stone-800 px-2.5 py-1 text-[11px] font-semibold text-stone-300 transition-all hover:bg-stone-700"
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        onClick={() => toggleArchive(t)}
+                        className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-all ${
+                          t.archivedAt
+                            ? 'bg-emerald-950/50 text-emerald-400 hover:bg-emerald-600 hover:text-white'
+                            : 'bg-red-950/50 text-red-400 hover:bg-red-600 hover:text-white'
+                        }`}
+                      >
+                        {t.archivedAt ? 'Mở khóa' : 'Khóa'}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {tenants.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-stone-500">
+                    Chưa có tenant nào.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showCreate && (
+        <CreateTenantModal
+          onClose={() => setShowCreate(false)}
+          onSuccess={async () => {
+            setShowCreate(false);
+            await refresh();
+            showNotice('success', 'Đã tạo tenant mới thành công.');
+          }}
+        />
+      )}
+
+      {assigningTenant && (
+        <AssignVillageModal
+          tenant={assigningTenant}
+          communes={communes}
+          onClose={() => setAssigningTenant(null)}
+          onSuccess={async (message) => {
+            setAssigningTenant(null);
+            await refresh();
+            showNotice('success', message);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CreateTenantModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [form, setForm] = useState({
+    slug: '',
+    name: '',
+    adminUsername: '',
+    adminPassword: '',
+    adminName: '',
+  });
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!/^[a-z0-9-]+$/.test(form.slug)) {
+      setError('Slug chỉ được chứa chữ thường, số và dấu gạch nối.');
+      return;
+    }
+    if (!form.name || !form.adminUsername || !form.adminPassword || !form.adminName) {
+      setError('Vui lòng nhập đầy đủ thông tin.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await superAdminClientApi('superadmin/tenants', { method: 'POST', body: form });
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof ClientApiError ? err.message : 'Không thể tạo tenant.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-stone-800 bg-stone-900 shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-stone-800 p-6">
+          <h3 className="font-serif text-base font-bold uppercase tracking-wider text-white">Tạo tenant mới</h3>
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-700 bg-stone-800 text-stone-400 hover:border-red-500 hover:text-red-400">
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+        <form onSubmit={submit} className="flex-1 space-y-3 overflow-y-auto p-6">
+          <Field label="Slug (subdomain) *" placeholder="VD: doan-ket-2" value={form.slug} onChange={(v) => setForm({ ...form, slug: v.toLowerCase() })} />
+          <Field label="Tên thôn *" placeholder="VD: Thôn Đoàn Kết 2" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+          <div className="border-t border-stone-800 pt-3">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Tài khoản Admin đầu tiên</p>
+            <div className="space-y-3">
+              <Field label="Tên đăng nhập *" value={form.adminUsername} onChange={(v) => setForm({ ...form, adminUsername: v })} />
+              <Field label="Mật khẩu *" type="password" value={form.adminPassword} onChange={(v) => setForm({ ...form, adminPassword: v })} />
+              <Field label="Họ và tên *" value={form.adminName} onChange={(v) => setForm({ ...form, adminName: v })} />
+            </div>
+          </div>
+          {error && <p className="text-[11px] font-semibold text-red-400">{error}</p>}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full rounded-xl bg-emerald-600 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all hover:bg-emerald-500 disabled:opacity-50"
+          >
+            Tạo tenant
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AssignVillageModal({
+  tenant,
+  communes,
+  onClose,
+  onSuccess,
+}: {
+  tenant: TenantRow;
+  communes: CommuneListItem[];
+  onClose: () => void;
+  onSuccess: (message: string) => void;
+}) {
+  const [selectedCommuneId, setSelectedCommuneId] = useState(tenant.communeId || '');
+  const [communeDetail, setCommuneDetail] = useState<CommuneDetail | null>(null);
+  const [selectedVillageIndex, setSelectedVillageIndex] = useState<number | null>(tenant.communeVillageIndex);
+  const [loadingVillages, setLoadingVillages] = useState(false);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function loadVillages(communeId: string) {
+    setLoadingVillages(true);
+    setCommuneDetail(null);
+    try {
+      const data = await superAdminClientApi<CommuneDetail>(`superadmin/communes/${communeId}`);
+      setCommuneDetail(data);
+    } catch {
+      setError('Không tải được danh sách thôn của xã này.');
+    } finally {
+      setLoadingVillages(false);
+    }
+  }
+
+  function selectCommune(communeId: string) {
+    setSelectedCommuneId(communeId);
+    setSelectedVillageIndex(communeId === tenant.communeId ? tenant.communeVillageIndex : null);
+    setError('');
+    if (communeId) loadVillages(communeId);
+    else setCommuneDetail(null);
+  }
+
+  async function submitAssign() {
+    setError('');
+    if (selectedCommuneId && selectedVillageIndex === null) {
+      setError('Vui lòng chọn 1 thôn trong xã.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await superAdminClientApi(`superadmin/tenants/${tenant._id}/assign-village`, {
+        method: 'PATCH',
+        body: selectedCommuneId ? { communeId: selectedCommuneId, villageIndex: selectedVillageIndex } : { communeId: null },
+      });
+      onSuccess(selectedCommuneId ? `Đã gán "${tenant.name}" vào xã đã chọn.` : `Đã bỏ gán xã khỏi "${tenant.name}".`);
+    } catch (err) {
+      setError(err instanceof ClientApiError ? err.message : 'Không thể cập nhật.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-stone-800 bg-stone-900 shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-stone-800 p-6">
+          <h3 className="font-serif text-base font-bold uppercase tracking-wider text-white">Sửa: {tenant.name}</h3>
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-700 bg-stone-800 text-stone-400 hover:border-red-500 hover:text-red-400">
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+        <div className="flex-1 space-y-3 overflow-y-auto p-6">
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Thuộc xã</label>
+            <select
+              value={selectedCommuneId}
+              onChange={(e) => selectCommune(e.target.value)}
+              className="w-full rounded-xl border border-stone-700 bg-stone-800 px-3 py-2 text-xs text-white outline-none transition-colors focus:border-emerald-500"
+            >
+              <option value="">— Không gán xã nào —</option>
+              {communes.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedCommuneId && (
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Chọn thôn</label>
+              {loadingVillages && <p className="text-xs text-stone-500">Đang tải...</p>}
+              {communeDetail && (
+                <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-xl border border-stone-800 p-2">
+                  {communeDetail.villages.map((v, index) => {
+                    const isOtherTenant = v.claimed && v.tenantId !== tenant._id;
+                    return (
+                      <label
+                        key={index}
+                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${
+                          isOtherTenant ? 'cursor-not-allowed text-stone-600' : 'cursor-pointer text-stone-200 hover:bg-stone-800'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="village"
+                          disabled={isOtherTenant}
+                          checked={selectedVillageIndex === index}
+                          onChange={() => setSelectedVillageIndex(index)}
+                        />
+                        {v.name}
+                        {isOtherTenant && <span className="text-[10px] text-stone-600">(đã có tenant khác)</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {error && <p className="text-[11px] font-semibold text-red-400">{error}</p>}
+          <button
+            onClick={submitAssign}
+            disabled={submitting}
+            className="w-full rounded-xl bg-emerald-600 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all hover:bg-emerald-500 disabled:opacity-50"
+          >
+            {submitting ? 'Đang lưu...' : 'Lưu'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">{label}</label>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-stone-700 bg-stone-800 px-3 py-2 text-xs text-white outline-none transition-colors focus:border-emerald-500"
+      />
+    </div>
+  );
+}
