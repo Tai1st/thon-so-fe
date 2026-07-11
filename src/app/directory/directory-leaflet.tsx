@@ -4,21 +4,18 @@ import { useEffect, useRef } from 'react';
 import type { Map as LeafletMap, Polygon } from 'leaflet';
 import type { PublicCommuneVillage } from '@/lib/types';
 
-// Bản đồ công khai ở domain gốc — theo phong cách tra-cuu.html gốc: MỖI
-// thôn 1 màu riêng (kể cả thôn chưa có cổng thông tin) thay vì chỉ 2 màu
-// theo trạng thái — băm tên thôn ra 1 hue cố định nên cùng 1 thôn luôn ra
-// cùng 1 màu giữa các lần tải trang. Thôn chưa có cổng thông tin vẫn có
-// màu riêng nhưng nhạt hơn + không bấm được (viền/tô đậm hơn = có thể bấm).
-const SELECTED_COLOR = '#e11d48';
+// Bản đồ công khai ở domain gốc — theo đúng phong cách tra-cuu.html gốc:
+// MỖI thôn 1 màu riêng (kể cả thôn chưa có cổng thông tin), lấy đúng bảng
+// 12 màu mà bản mẫu dùng (rút ra từ REGIONS[].color trong tra-cuu.html —
+// gán tuần tự theo thứ tự thôn, lặp lại sau mỗi 12 thôn) thay vì băm màu
+// ngẫu nhiên, để đúng "tông" màu như bản gốc.
+const VILLAGE_PALETTE = [
+  '#7c3aed', '#0891b2', '#16a34a', '#ea580c', '#dc2626', '#2563eb',
+  '#c026d3', '#65a30d', '#0d9488', '#9333ea', '#f59e0b', '#e11d48',
+];
 
-function colorForVillage(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash << 5) - hash + name.charCodeAt(i);
-    hash |= 0;
-  }
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 62%, 42%)`;
+function colorForVillage(index: number): string {
+  return VILLAGE_PALETTE[index % VILLAGE_PALETTE.length];
 }
 
 // Marker vị trí hộ gia đình đã định vị GPS — cùng thiết kế với housePinIcon()
@@ -69,24 +66,43 @@ export function DirectoryLeaflet({
       );
       mapRef.current = map;
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      // Cho phép chọn loại bản đồ (đường phố / vệ tinh / địa hình) — dùng
+      // các tile server công khai, không cần API key.
+      const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap contributors',
-      }).addTo(map);
+      });
+      const satellite = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 19, attribution: 'Tiles &copy; Esri' },
+      );
+      const terrain = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        maxZoom: 17,
+        attribution: '&copy; OpenStreetMap contributors, SRTM | &copy; OpenTopoMap',
+      });
+
+      streets.addTo(map);
+      L.control
+        .layers(
+          { 'Bản đồ': streets, 'Vệ tinh': satellite, 'Địa hình': terrain },
+          undefined,
+          { position: 'topright' },
+        )
+        .addTo(map);
 
       const allBounds: [number, number][] = [];
-      villages.forEach((village) => {
+      villages.forEach((village, index) => {
         const latlngs = village.boundary.coordinates[0].map(([lng, lat]) => {
           allBounds.push([lat, lng]);
           return [lat, lng] as [number, number];
         });
-        const color = colorForVillage(village.name);
+        const color = colorForVillage(index);
         const poly = L.polygon(latlngs, {
           color,
-          weight: village.tenantSlug ? 2 : 1.4,
-          opacity: village.tenantSlug ? 0.95 : 0.7,
+          weight: village.tenantSlug ? 2.2 : 1.6,
+          opacity: 0.95,
           fillColor: color,
-          fillOpacity: village.tenantSlug ? 0.4 : 0.18,
+          fillOpacity: village.tenantSlug ? 0.6 : 0.5,
         }).addTo(map);
 
         poly.bindTooltip(village.name, { permanent: true, direction: 'center', className: 'directory-area-label' });
@@ -96,7 +112,7 @@ export function DirectoryLeaflet({
         village.households.forEach((h) => {
           L.marker([h.lat, h.lng], { icon: householdPinIcon(L) })
             .addTo(map)
-            .bindTooltip(village.tenantName || village.name, { direction: 'top', offset: [0, -22] });
+            .bindTooltip(h.name, { direction: 'top', offset: [0, -22] });
         });
       });
 
@@ -120,15 +136,25 @@ export function DirectoryLeaflet({
     (async () => {
       const L = await import('leaflet');
       polysRef.current.forEach((poly, name) => {
-        const village = villages.find((v) => v.name === name);
+        const index = villages.findIndex((v) => v.name === name);
+        const village = villages[index];
         const isSelected = name === selectedName;
-        const color = colorForVillage(name);
+        const color = colorForVillage(index);
+        // Thôn được chọn: giữ nguyên màu nền của chính nó, chỉ đổi VIỀN
+        // thành nét đứt chạy hiệu ứng (CSS .directory-village-selected
+        // trong globals.css) — đúng hành vi .area-border-selected của
+        // tra-cuu.html, không phải đổi hẳn sang 1 màu highlight khác.
         poly.setStyle({
-          color: isSelected ? SELECTED_COLOR : color,
-          weight: isSelected ? 3 : village?.tenantSlug ? 2 : 1.4,
-          fillColor: isSelected ? SELECTED_COLOR : color,
-          fillOpacity: isSelected ? 0.45 : village?.tenantSlug ? 0.4 : 0.18,
+          color,
+          weight: isSelected ? 3 : village?.tenantSlug ? 2.2 : 1.6,
+          fillColor: color,
+          fillOpacity: village?.tenantSlug ? 0.6 : 0.5,
         });
+        // Leaflet chỉ áp dụng option `className` lúc TẠO layer (_initPath),
+        // gọi lại qua setStyle() sau đó không có tác dụng — phải tự thêm/bỏ
+        // class thẳng trên phần tử SVG <path> qua getElement().
+        const el = poly.getElement();
+        el?.classList.toggle('directory-village-selected', isSelected);
         if (isSelected && mapRef.current) {
           mapRef.current.flyToBounds((poly as InstanceType<typeof L.Polygon>).getBounds(), { padding: [40, 40], duration: 0.6 });
         }

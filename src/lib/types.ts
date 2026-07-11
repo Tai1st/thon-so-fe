@@ -184,7 +184,7 @@ export interface PublicCommuneVillage {
   boundary: { type: string; coordinates: number[][][] };
   tenantSlug: string | null;
   tenantName: string | null;
-  households: { lat: number; lng: number }[];
+  households: { lat: number; lng: number; name: string }[];
 }
 
 export interface PublicCommune {

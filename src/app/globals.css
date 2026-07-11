@@ -21,3 +21,50 @@
 body {
   font-family: var(--font-sans), sans-serif;
 }
+
+/* leaflet.css tự set font Helvetica Neue/Arial cho .leaflet-container, đè
+   lên font-sans (Montserrat) của toàn trang — trả lại đúng font, y hệt
+   ghi chú trong tra-cuu.html gốc (bản mẫu gặp đúng vấn đề này). */
+.leaflet-container {
+  font-family: var(--font-sans), sans-serif !important;
+}
+
+/* Nhãn tên thôn trên bản đồ danh mục — bỏ nền/viền/bóng mặc định của
+   Leaflet tooltip, chỉ còn chữ + viền chữ trắng để vẫn đọc được trên nền
+   polygon màu, đúng phong cách .area-label trong tra-cuu.html gốc. */
+.directory-area-label.leaflet-tooltip {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: rgba(15, 23, 42, 0.82);
+  font-weight: 800;
+  font-size: 10.5px;
+  line-height: 1.18;
+  padding: 0 2px;
+  pointer-events: none;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.98),
+    1px 0 0 rgba(255, 255, 255, 0.98),
+    0 -1px 0 rgba(255, 255, 255, 0.98),
+    -1px 0 0 rgba(255, 255, 255, 0.98);
+}
+.directory-area-label.leaflet-tooltip::before {
+  display: none;
+}
+
+/* Thôn đang chọn trên bản đồ danh mục — viền nét đứt chạy hiệu ứng +
+   glow, giữ nguyên màu nền của chính thôn đó (không đổi sang màu khác),
+   đúng .area-border-selected trong tra-cuu.html gốc. */
+.directory-village-selected {
+  stroke-dasharray: 14 7;
+  animation: directoryBorderRun 0.72s linear infinite;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(225, 29, 72, 0.5));
+}
+@keyframes directoryBorderRun {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
