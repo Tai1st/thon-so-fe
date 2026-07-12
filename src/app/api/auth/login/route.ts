@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTenantSlug } from '@/lib/tenant';
 import { SESSION_COOKIE } from '@/lib/api';
 
-const BASE_URL = process.env.BE_API_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BE_API_BASE_URL || 'http://localhost:8000/api';
 
 // FE đóng vai BFF cho riêng bước login (mục 5 tài liệu thiết kế): browser
 // không nhận JWT trực tiếp, chỉ nhận cookie httpOnly do chính FE set.

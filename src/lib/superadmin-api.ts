@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { ApiError } from './api';
 
-const BASE_URL = process.env.BE_API_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BE_API_BASE_URL || 'http://localhost:8000/api';
 export const SUPERADMIN_SESSION_COOKIE = 'superadmin_session';
 
 // Tương tự apiFetch() nhưng KHÔNG gắn x-tenant-slug — superadmin không

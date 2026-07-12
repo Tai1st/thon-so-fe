@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SUPERADMIN_SESSION_COOKIE } from '@/lib/superadmin-api';
 
-const BASE_URL = process.env.BE_API_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BE_API_BASE_URL || 'http://localhost:8000/api';
 
 // Route riêng (không dùng catch-all [...path]) vì import Xã gửi
 // multipart/form-data (file KMZ) — phải forward nguyên stream + đúng

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SUPERADMIN_SESSION_COOKIE } from '@/lib/superadmin-api';
 
-const BASE_URL = process.env.BE_API_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BE_API_BASE_URL || 'http://localhost:8000/api';
 
 // Proxy dùng chung cho thao tác ghi (POST/PATCH) từ Client Component ở khu
 // vực superadmin — cùng lý do với /api/backend/[...path] (Client Component

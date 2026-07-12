@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { getTenantSlug } from './tenant';
 
-const BASE_URL = process.env.BE_API_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BE_API_BASE_URL || 'http://localhost:8000/api';
 export const SESSION_COOKIE = 'session';
 
 export class ApiError extends Error {

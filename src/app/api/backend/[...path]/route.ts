@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { getTenantSlug } from '@/lib/tenant';
 import { SESSION_COOKIE } from '@/lib/api';
 
-const BASE_URL = process.env.BE_API_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BE_API_BASE_URL || 'http://localhost:8000/api';
 
 // Proxy dùng chung cho MỌI thao tác ghi (POST/PATCH) mà Client Component
 // cần gọi sau khi đã đăng nhập — Client Component không có headers()/
