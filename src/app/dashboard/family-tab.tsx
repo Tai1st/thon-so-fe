@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { clientApi, ClientApiError } from '@/lib/client-api';
-import { RESIDENT_GROUPS } from '@/lib/types';
+import { buildResidentGroups } from '@/lib/types';
 import type { HouseholdData, HouseholdMember, PublicTenant, RequestsMine } from '@/lib/types';
 
 const FamilyGpsMap = dynamic(() => import('./family-gps-map').then((m) => m.FamilyGpsMap), { ssr: false });
@@ -48,15 +48,18 @@ export function FamilyTab({
   household,
   requests,
   tenants,
+  oldVillages,
   onHouseholdChange,
   onRequestsChange,
 }: {
   household: HouseholdData;
   requests: RequestsMine;
   tenants: PublicTenant[];
+  oldVillages: string[] | undefined;
   onHouseholdChange: (h: HouseholdData) => void;
   onRequestsChange: (r: RequestsMine) => void;
 }) {
+  const groups = buildResidentGroups(oldVillages);
   const [editingMember, setEditingMember] = useState<HouseholdMember | null>(null);
   const [addingMember, setAddingMember] = useState(false);
   const [houseNumberInput, setHouseNumberInput] = useState(household.houseNumber);
@@ -157,58 +160,60 @@ export function FamilyTab({
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-stone-200 bg-stone-50 text-left">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="border-b border-stone-200 bg-stone-50 text-stone-500">
-              <th className="p-4 font-semibold">Thành viên</th>
-              <th className="p-4 font-semibold">Quan hệ với chủ hộ</th>
-              <th className="p-4 font-semibold">Ngày sinh</th>
-              <th className="p-4 font-semibold">Số Căn Cước</th>
-              <th className="p-4 font-semibold">Số điện thoại</th>
-              <th className="p-4 text-right font-semibold">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-200/40 text-stone-600">
-            {household.members.map((m) => (
-              <tr key={m._id} className="transition-colors hover:bg-stone-50">
-                <td className="p-4 font-bold text-stone-900">{m.name}</td>
-                <td className="p-4 text-stone-600">{m.relation || (m.isHouseholder ? 'Chủ hộ' : 'Thành viên')}</td>
-                <td className="p-4 font-mono text-stone-500">{m.dob}</td>
-                <td className="p-4 font-mono text-stone-400">{m.cccd}</td>
-                <td className="p-4 font-mono text-stone-500">{m.phone || 'Chưa có SĐT'}</td>
-                <td className="p-4 text-right">
-                  {pendingEditByResident.has(m._id) ? (
+      <div className="table-scroll-wrap rounded-xl border border-stone-200 bg-stone-50 text-left">
+        <div className="table-scroll">
+          <table className="w-full min-w-205 text-left text-xs">
+            <thead>
+              <tr className="border-b border-stone-200 bg-stone-50 text-stone-500">
+                <th className="min-w-45 whitespace-nowrap bg-stone-50 p-4 font-semibold">Thành viên</th>
+                <th className="min-w-40 whitespace-nowrap p-4 font-semibold">Quan hệ với chủ hộ</th>
+                <th className="min-w-30 whitespace-nowrap p-4 font-semibold">Ngày sinh</th>
+                <th className="min-w-35 whitespace-nowrap p-4 font-semibold">Số Căn Cước</th>
+                <th className="min-w-35 whitespace-nowrap p-4 font-semibold">Số điện thoại</th>
+                <th className="min-w-35 whitespace-nowrap bg-stone-50 p-4 text-right font-semibold">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-200/40 text-stone-600">
+              {household.members.map((m) => (
+                <tr key={m._id} className="transition-colors hover:bg-stone-50">
+                  <td className="whitespace-nowrap bg-stone-50 p-4 font-bold text-stone-900">{m.name}</td>
+                  <td className="whitespace-nowrap p-4 text-stone-600">{m.relation || (m.isHouseholder ? 'Chủ hộ' : 'Thành viên')}</td>
+                  <td className="whitespace-nowrap p-4 font-mono text-stone-500">{m.dob}</td>
+                  <td className="whitespace-nowrap p-4 font-mono text-stone-400">{m.cccd}</td>
+                  <td className="whitespace-nowrap p-4 font-mono text-stone-500">{m.phone || 'Chưa có SĐT'}</td>
+                  <td className="whitespace-nowrap bg-stone-50 p-4 text-right">
+                    {pendingEditByResident.has(m._id) ? (
+                      <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-600">
+                        <i className="fa-solid fa-clock mr-1" /> Chờ Admin duyệt
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setEditingMember(m)}
+                        className="rounded bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-600 transition-all hover:bg-stone-100"
+                      >
+                        <i className="fa-solid fa-pen-to-square mr-1" /> Sửa
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {pendingNewMembers.map((r) => (
+                <tr key={r._id} className="opacity-70 transition-colors hover:bg-stone-50">
+                  <td className="whitespace-nowrap bg-stone-50 p-4 font-bold text-stone-900">{r.name}</td>
+                  <td className="whitespace-nowrap p-4 text-stone-600">{r.relation}</td>
+                  <td className="whitespace-nowrap p-4 font-mono text-stone-500">{r.dob}</td>
+                  <td className="whitespace-nowrap p-4 font-mono text-stone-400">{r.cccd || '-'}</td>
+                  <td className="whitespace-nowrap p-4 font-mono text-stone-500">{r.phone || 'Chưa có SĐT'}</td>
+                  <td className="whitespace-nowrap bg-stone-50 p-4 text-right">
                     <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-600">
                       <i className="fa-solid fa-clock mr-1" /> Chờ Admin duyệt
                     </span>
-                  ) : (
-                    <button
-                      onClick={() => setEditingMember(m)}
-                      className="rounded bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-600 transition-all hover:bg-stone-100"
-                    >
-                      <i className="fa-solid fa-pen-to-square mr-1" /> Sửa
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {pendingNewMembers.map((r) => (
-              <tr key={r._id} className="opacity-70 transition-colors hover:bg-stone-50">
-                <td className="p-4 font-bold text-stone-900">{r.name}</td>
-                <td className="p-4 text-stone-600">{r.relation}</td>
-                <td className="p-4 font-mono text-stone-500">{r.dob}</td>
-                <td className="p-4 font-mono text-stone-400">{r.cccd || '-'}</td>
-                <td className="p-4 font-mono text-stone-500">{r.phone || 'Chưa có SĐT'}</td>
-                <td className="p-4 text-right">
-                  <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-600">
-                    <i className="fa-solid fa-clock mr-1" /> Chờ Admin duyệt
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* GPS section */}
@@ -291,6 +296,7 @@ export function FamilyTab({
       {editingMember && (
         <EditMemberModal
           member={editingMember}
+          groups={groups}
           onClose={() => setEditingMember(null)}
           onSuccess={async () => {
             setEditingMember(null);
@@ -302,6 +308,7 @@ export function FamilyTab({
 
       {addingMember && (
         <AddMemberModal
+          groups={groups}
           onClose={() => setAddingMember(false)}
           onSuccess={async () => {
             setAddingMember(false);
@@ -316,10 +323,12 @@ export function FamilyTab({
 
 function EditMemberModal({
   member,
+  groups,
   onClose,
   onSuccess,
 }: {
   member: HouseholdMember;
+  groups: string[];
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -332,7 +341,7 @@ function EditMemberModal({
     phone: member.phone,
     fatherName: member.fatherName || '',
     motherName: member.motherName || '',
-    group: member.group || RESIDENT_GROUPS[0],
+    group: member.group || groups[0],
     permanentAddress: member.permanentAddress || '',
     temporaryAddress: member.temporaryAddress || '',
   };
@@ -397,7 +406,7 @@ function EditMemberModal({
             <FormField label="Họ tên cha" value={form.fatherName} onChange={(v) => setForm({ ...form, fatherName: v })} />
             <FormField label="Họ tên mẹ" value={form.motherName} onChange={(v) => setForm({ ...form, motherName: v })} />
           </div>
-          <FormSelect label="Nhóm cư trú" value={form.group} onChange={(v) => setForm({ ...form, group: v })} />
+          <FormSelect label="Nhóm cư trú" value={form.group} onChange={(v) => setForm({ ...form, group: v })} options={groups} />
           <FormField
             label="Địa chỉ thường trú"
             placeholder="VD: Thôn Đoàn Kết, xã Dliê Ya, tỉnh Đắk Lắk"
@@ -427,7 +436,7 @@ function EditMemberModal({
   );
 }
 
-function AddMemberModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function AddMemberModal({ groups, onClose, onSuccess }: { groups: string[]; onClose: () => void; onSuccess: () => void }) {
   const [form, setForm] = useState({
     name: '',
     relation: '',
@@ -437,7 +446,7 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
     phone: '',
     fatherName: '',
     motherName: '',
-    group: RESIDENT_GROUPS[0] as string,
+    group: groups[0],
     permanentAddress: 'Thôn Đoàn Kết, xã Dliê Ya, tỉnh Đắk Lắk',
     temporaryAddress: '',
   });
@@ -493,7 +502,7 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
             <FormField label="Họ tên cha" value={form.fatherName} onChange={(v) => setForm({ ...form, fatherName: v })} />
             <FormField label="Họ tên mẹ" value={form.motherName} onChange={(v) => setForm({ ...form, motherName: v })} />
           </div>
-          <FormSelect label="Nhóm cư trú" value={form.group} onChange={(v) => setForm({ ...form, group: v })} />
+          <FormSelect label="Nhóm cư trú" value={form.group} onChange={(v) => setForm({ ...form, group: v })} options={groups} />
           <FormField
             label="Địa chỉ thường trú"
             placeholder="VD: Thôn Đoàn Kết, xã Dliê Ya, tỉnh Đắk Lắk"
@@ -576,7 +585,17 @@ function FormGender({ value, onChange }: { value: string; onChange: (v: string) 
   );
 }
 
-function FormSelect({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function FormSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: readonly string[];
+}) {
   return (
     <div className="space-y-1.5">
       <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">{label}</label>
@@ -585,7 +604,7 @@ function FormSelect({ label, value, onChange }: { label: string; value: string; 
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none transition-colors focus:border-primary-500"
       >
-        {RESIDENT_GROUPS.map((g) => (
+        {options.map((g) => (
           <option key={g} value={g}>
             {g}
           </option>

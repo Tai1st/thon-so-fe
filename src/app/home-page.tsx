@@ -44,6 +44,9 @@ export function VillageHomePage({
   const chief = roster.security.find((m) => m.title === 'Tổ Trưởng');
   const deputies = roster.security.filter((m) => m.title === 'Tổ Phó');
   const others = roster.security.filter((m) => m.title !== 'Tổ Trưởng' && m.title !== 'Tổ Phó');
+  const siteName = content.siteName || 'Thôn Đoàn Kết';
+  const logoUrl = content.logoUrl || '/logo.png';
+  const heroImage = content.heroImage || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600';
 
   function scrollGallery(dir: number) {
     galleryRef.current?.scrollBy({ left: dir * 300, behavior: 'smooth' });
@@ -59,10 +62,10 @@ export function VillageHomePage({
               <i className="fa-solid fa-bars"></i>
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Logo Thôn Đoàn Kết" className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-primary-100" />
+            <img src={logoUrl} alt={`Logo ${siteName}`} className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-primary-100" />
             <div className="min-w-0">
               <p className="truncate text-[9px] font-bold uppercase tracking-widest text-primary-600">Cổng Thông Tin Điện Tử</p>
-              <h1 className="truncate text-sm font-bold uppercase leading-tight text-red-600">Thôn Đoàn Kết – Xã Dliê Ya</h1>
+              <h1 className="truncate text-sm font-bold uppercase leading-tight text-red-600">{siteName} – Xã Dliê Ya</h1>
             </div>
           </div>
         </div>
@@ -77,8 +80,8 @@ export function VillageHomePage({
             <div className="mb-2 flex items-center justify-between border-b border-primary-600/50 pb-4">
               <div className="flex items-center gap-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.png" alt="Logo" className="h-9 w-9 rounded-full object-cover ring-2 ring-primary-500/40" />
-                <span className="text-[11px] font-black normal-case text-white">Thôn Đoàn Kết</span>
+                <img src={logoUrl} alt="Logo" className="h-9 w-9 rounded-full object-cover ring-2 ring-primary-500/40" />
+                <span className="text-[11px] font-black normal-case text-white">{siteName}</span>
               </div>
               <button
                 onClick={() => setMobileMenuOpen(false)}
@@ -111,11 +114,11 @@ export function VillageHomePage({
         <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:px-8">
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Logo Thôn Đoàn Kết" className="h-14 w-14 rounded-full object-cover shadow-sm ring-2 ring-primary-100" />
+            <img src={logoUrl} alt={`Logo ${siteName}`} className="h-14 w-14 rounded-full object-cover shadow-sm ring-2 ring-primary-100" />
             <div className="text-center lg:text-left">
               <p className="text-[11px] font-bold uppercase tracking-widest text-primary-600">Cổng Thông Tin Điện Tử</p>
               <h1 className="font-sans text-lg font-bold uppercase leading-tight text-red-600 md:text-2xl">
-                Thôn Đoàn Kết – Xã Dliê Ya, Đắk Lắk
+                {siteName} – Xã Dliê Ya, Đắk Lắk
               </h1>
               <p className="text-[11px] uppercase tracking-wide text-primary-600">Nền tảng số cho một cộng đồng mới</p>
             </div>
@@ -183,7 +186,7 @@ export function VillageHomePage({
             <div className="relative hidden min-h-[460px] items-end overflow-hidden rounded-3xl shadow-lg lg:col-span-8 lg:flex">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600"
+                src={heroImage}
                 alt="Cánh đồng Tây Nguyên"
                 className="absolute inset-0 h-full w-full object-cover"
               />
@@ -553,7 +556,7 @@ export function VillageHomePage({
         <div className="mx-auto grid max-w-[1600px] grid-cols-1 items-center gap-5 px-4 py-6 text-xs sm:px-6 lg:grid-cols-3 lg:px-8">
           <div className="space-y-2 text-center lg:text-left">
             <p className="flex items-center justify-center gap-2 lg:justify-start">
-              <i className="fa-solid fa-map-location-dot text-primary-300"></i> Thôn Đoàn Kết – Xã Dliê Ya – Tỉnh Đắk Lắk
+              <i className="fa-solid fa-map-location-dot text-primary-300"></i> {siteName} – Xã Dliê Ya – Tỉnh Đắk Lắk
             </p>
             <p className="flex items-center justify-center gap-2 lg:justify-start">
               <i className="fa-solid fa-phone text-primary-300"></i> Đường dây nóng ANTT:{' '}
@@ -563,7 +566,7 @@ export function VillageHomePage({
             </p>
           </div>
           <div className="space-y-1.5 text-center">
-            <p className="font-semibold text-white">Cổng Thông Tin Điện Tử Thôn Đoàn Kết</p>
+            <p className="font-semibold text-white">Cổng Thông Tin Điện Tử {siteName}</p>
             <p className="text-primary-300">&copy; 2026. All rights reserved.</p>
             <p className="text-primary-300">Thôn: {slug}</p>
           </div>

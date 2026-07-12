@@ -2,9 +2,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { HomeContent, HouseholdData, PublicRoster, PublicTenant, RequestsMine } from '@/lib/types';
+import type {
+  HomeContent,
+  HouseholdData,
+  IncidentReportItem,
+  PublicRoster,
+  PublicTenant,
+  RequestsMine,
+  ResidenceRegistrationItem,
+  VillageFund,
+} from '@/lib/types';
 import { OverviewTab } from './overview-tab';
 import { FamilyTab } from './family-tab';
+import { ContributionsTab } from './contributions-tab';
+import { IncidentTab } from './incident-tab';
+import { ResidenceTab } from './residence-tab';
 
 interface Me {
   id: string;
@@ -22,8 +34,6 @@ const TABS = [
   { id: 'dang-ky-luu-tru', label: 'Đăng Ký Lưu Trú', icon: 'fa-house-user' },
 ] as const;
 
-const READY_TABS = new Set(['dashboard', 'family']);
-
 export function ResidentPortal({
   me,
   household,
@@ -31,6 +41,9 @@ export function ResidentPortal({
   homeContent,
   tenants,
   roster,
+  villageFund,
+  incidentReports,
+  residenceRegistrations,
 }: {
   me: Me;
   household: HouseholdData;
@@ -38,12 +51,17 @@ export function ResidentPortal({
   homeContent: HomeContent;
   tenants: PublicTenant[];
   roster: PublicRoster;
+  villageFund: VillageFund;
+  incidentReports: IncidentReportItem[];
+  residenceRegistrations: ResidenceRegistrationItem[];
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [householdState, setHouseholdState] = useState(household);
   const [requestsState, setRequestsState] = useState(requests);
+  const [incidentReportsState, setIncidentReportsState] = useState(incidentReports);
+  const [residenceRegistrationsState, setResidenceRegistrationsState] = useState(residenceRegistrations);
 
   const pendingCount = requestsState.memberEditRequests.filter((r) => r.status === 'pending').length +
     requestsState.newMemberRequests.filter((r) => r.status === 'pending').length;
@@ -61,6 +79,9 @@ export function ResidentPortal({
     .map((w) => w[0])
     .join('')
     .toUpperCase();
+
+  const siteName = homeContent.siteName || 'Thôn Đoàn Kết';
+  const logoUrl = homeContent.logoUrl || '/logo.png';
 
   function renderTabContent() {
     if (activeTab === 'dashboard') {
@@ -81,16 +102,26 @@ export function ResidentPortal({
           household={householdState}
           requests={requestsState}
           tenants={tenants}
+          oldVillages={homeContent.oldVillages}
           onHouseholdChange={setHouseholdState}
           onRequestsChange={setRequestsState}
         />
       );
     }
-    return (
-      <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center text-xs text-stone-400">
-        Tính năng này đang được phát triển ở giai đoạn tiếp theo.
-      </div>
-    );
+    if (activeTab === 'contributions') {
+      return (
+        <ContributionsTab household={householdState} villageFund={villageFund} onHouseholdChange={setHouseholdState} />
+      );
+    }
+    if (activeTab === 'bao-antt') {
+      return <IncidentTab reports={incidentReportsState} onReportsChange={setIncidentReportsState} />;
+    }
+    if (activeTab === 'dang-ky-luu-tru') {
+      return (
+        <ResidenceTab registrations={residenceRegistrationsState} onRegistrationsChange={setResidenceRegistrationsState} />
+      );
+    }
+    return null;
   }
 
   return (
@@ -105,8 +136,8 @@ export function ResidentPortal({
             <i className="fa-solid fa-bars" />
           </button>
           <img
-            src="/logo.png"
-            alt="Logo Thôn Đoàn Kết"
+            src={logoUrl}
+            alt={`Logo ${siteName}`}
             className="hidden h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-primary-100 sm:block"
           />
           <div className="min-w-0">
@@ -114,7 +145,7 @@ export function ResidentPortal({
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" /> Cổng Thông Tin Điện Tử
             </p>
             <h3 className="truncate text-sm font-bold uppercase leading-tight tracking-wider text-red-600 sm:text-base md:text-lg">
-              CỔNG CƯ DÂN THÔN ĐOÀN KẾT
+              CỔNG CƯ DÂN {siteName.toUpperCase()}
             </h3>
             <span className="hidden text-[10px] text-stone-500 sm:block">Xã Dliê Ya, Tỉnh Đắk Lắk</span>
           </div>
@@ -173,8 +204,8 @@ export function ResidentPortal({
         >
           <div className="mb-2 flex items-center justify-between border-b border-stone-100 pb-4 md:hidden">
             <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="Logo Thôn Đoàn Kết" className="h-9 w-9 rounded-full object-cover ring-2 ring-primary-100" />
-              <span className="text-[11px] font-black tracking-wide text-stone-900">Thôn Đoàn Kết</span>
+              <img src={logoUrl} alt={`Logo ${siteName}`} className="h-9 w-9 rounded-full object-cover ring-2 ring-primary-100" />
+              <span className="text-[11px] font-black tracking-wide text-stone-900">{siteName}</span>
             </div>
             <button
               onClick={() => setMobileSidebarOpen(false)}
@@ -200,11 +231,6 @@ export function ResidentPortal({
               >
                 <i className={`fa-solid ${tab.icon} w-4 text-center`} />
                 <span>{tab.label}</span>
-                {!READY_TABS.has(tab.id) && (
-                  <span className="ml-auto rounded bg-stone-100 px-1.5 py-0.5 text-[8px] font-bold uppercase text-stone-400">
-                    Sắp có
-                  </span>
-                )}
               </button>
             ))}
           </div>
@@ -222,7 +248,7 @@ export function ResidentPortal({
               </div>
               <div className="flex justify-between gap-2">
                 <span className="text-stone-500">Địa chỉ:</span>
-                <span className="text-right font-semibold text-stone-800">Thôn Đoàn Kết</span>
+                <span className="text-right font-semibold text-stone-800">{siteName}</span>
               </div>
               <div className="flex justify-between gap-2">
                 <span className="text-stone-500">Số nhân khẩu:</span>

@@ -51,6 +51,10 @@ export interface HomeContent {
   security: { hotline: string; hotlineDisplay: string; slogan: string };
   schedule: ScheduleItem[];
   gallery: GalleryItem[];
+  heroImage?: string;
+  siteName?: string;
+  logoUrl?: string;
+  oldVillages?: string[];
 }
 
 export interface RosterMember {
@@ -83,7 +87,18 @@ export interface HouseholdMember {
   temporaryAddress: string;
 }
 
+// Fallback khi tenant chưa có HomeContent.oldVillages (tenant mới, Admin
+// chưa vào "Quản lý Trang chủ" định nghĩa thôn cũ) — chỉ dùng làm giá trị
+// mặc định ban đầu, không phải nguồn dữ liệu chính thức nữa.
 export const RESIDENT_GROUPS = ['Đoàn Kết cũ', 'Yên Khánh cũ', 'Tạm Trú', 'Lưu Trú', 'Xâm Canh'] as const;
+export const FIXED_RESIDENT_GROUPS = ['Tạm Trú', 'Lưu Trú', 'Xâm Canh'] as const;
+
+// Danh sách nhóm cư trú thật sự dùng cho dropdown chọn Resident.group —
+// ghép "thôn cũ" do Admin tự định nghĩa (HomeContent.oldVillages) với các
+// nhóm cố định (Tạm Trú/Lưu Trú/Xâm Canh).
+export function buildResidentGroups(oldVillages: string[] | undefined): string[] {
+  return [...(oldVillages && oldVillages.length > 0 ? oldVillages : []), ...FIXED_RESIDENT_GROUPS];
+}
 
 export interface FundObligation {
   id: string;
@@ -199,4 +214,252 @@ export interface AdministrativeUnitItem {
   lat: number;
   lng: number;
   mapsUrl: string | null;
+}
+
+export interface VillageFund {
+  thu: { household: string; amount: number }[];
+  chi: { desc: string; amount: number }[];
+  unpaidHouseholds: number;
+  totalHouseholds: number;
+  bankInfo: { bankName: string; accountNumber: string; accountHolder: string };
+}
+
+export interface IncidentReportItem {
+  _id: string;
+  familyId: string;
+  reporterName: string;
+  content: string;
+  locationText: string;
+  lat: number | null;
+  lng: number | null;
+  status: 'Mới' | 'Đã tiếp nhận' | 'Đã xử lý';
+  time: string;
+}
+
+export interface DeleteRequestItem {
+  _id: string;
+  residentId: string;
+  residentName: string;
+  reason: string;
+  submittedBy: string;
+  status: RequestStatus;
+  time: string;
+}
+
+export interface AdminPendingRequests {
+  deleteRequests: DeleteRequestItem[];
+  memberEditRequests: MemberEditRequestItem[];
+  newMemberRequests: NewMemberRequestItem[];
+}
+
+export interface AdminAccountItem {
+  _id: string;
+  username: string;
+  name: string;
+  role: string;
+  position: string;
+  lastActive: string;
+  status: 'active' | 'locked';
+  assoc?: string;
+}
+
+export interface AdminAccountsResponse {
+  accounts: AdminAccountItem[];
+  residentCount: number;
+  unaccountedCount: number;
+}
+
+export type PermissionLevel = 'view' | 'view-edit' | 'locked';
+export interface RoleFieldAccess {
+  cccd: PermissionLevel;
+  dob: PermissionLevel;
+  villageFund: PermissionLevel;
+  gpsAddress: PermissionLevel;
+}
+export interface PermissionMatrix {
+  resident: RoleFieldAccess;
+  'association-officer': RoleFieldAccess;
+  'village-head': RoleFieldAccess;
+  'security-team': RoleFieldAccess;
+  admin: RoleFieldAccess;
+}
+
+export interface AuditLogItem {
+  _id: string;
+  time: string;
+  action: string;
+  detail: string;
+  actor: string;
+}
+
+export interface VillageHeadResident {
+  _id: string;
+  name: string;
+  dob: string;
+  gender: string;
+  cccd: string;
+  phone: string;
+  relation: string;
+  isHouseholder: boolean;
+  familyId: string;
+  group: string;
+  fatherName: string;
+  motherName: string;
+  permanentAddress: string;
+  temporaryAddress: string;
+  hasPendingDeleteRequest: boolean;
+}
+
+export interface HouseholdLocation {
+  familyId: string;
+  headName: string;
+  houseNumber: string;
+  gpsCoord: GpsCoord | null;
+}
+
+export interface FundObligationDef {
+  id: string;
+  name: string;
+  amount: number;
+  period: string;
+}
+
+export interface PendingFundPayment {
+  familyId: string;
+  headName: string;
+  obligationId: string;
+  name: string;
+  amount: number;
+  date: string;
+}
+
+export interface UnpaidHousehold {
+  familyId: string;
+  representative: string;
+  dob: string;
+  group: string;
+  unpaidAmount: number;
+}
+
+export interface VillageFundOverview {
+  thuTotal: number;
+  chiTotal: number;
+  balance: number;
+  thu: { id?: string; household: string; amount: number; date?: string }[];
+  chi: { id?: string; desc: string; amount: number; date?: string }[];
+  bankInfo: { bankName: string; accountNumber: string; accountHolder: string };
+  obligations: FundObligationDef[];
+  pendingPayments: PendingFundPayment[];
+  unpaidHouseholds: UnpaidHousehold[];
+}
+
+export interface ResidenceRegistrationItem {
+  _id: string;
+  familyId: string;
+  hostName: string;
+  guestName: string;
+  guestCccd: string;
+  relationship: string;
+  reason: string;
+  fromDate: string;
+  toDate: string;
+  status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối';
+  submittedBy: string;
+  time: string;
+}
+
+export interface IncidentReportWithHead extends IncidentReportItem {
+  headName: string;
+}
+
+export interface IncidentMinutesItem {
+  _id: string;
+  relatedReportId: string | null;
+  title: string;
+  location: string;
+  involvedPeople: string;
+  content: string;
+  createdBy: string;
+  time: string;
+}
+
+export interface SecurityTeamResident {
+  _id: string;
+  name: string;
+  dob: string;
+  cccd: string;
+  phone: string;
+  relation: string;
+  isHouseholder: boolean;
+  familyId: string;
+  group: string;
+}
+
+export interface SecurityRosterMember {
+  name: string;
+  title: string;
+  phone: string;
+  phoneDisplay: string;
+  cccd: string;
+  dob: string;
+  familyId: string;
+  group: string;
+}
+
+export interface AssociationMember {
+  _id: string;
+  name: string;
+  dob: string;
+  group: string;
+  phone: string;
+  familyId: string;
+}
+
+export interface AssociationMembersResponse {
+  association: string;
+  members: AssociationMember[];
+  nonMembers: AssociationMember[];
+}
+
+export interface AssocTransaction {
+  id: string;
+  type: 'Thu' | 'Chi';
+  desc: string;
+  member?: string;
+  amount: number;
+  date: string;
+  officer?: string;
+}
+
+export interface AssocLoan {
+  id: string;
+  memberName: string;
+  amount: number;
+  interestRate: number;
+  termMonths: number;
+  status: string;
+  date: string;
+  completedDate: string | null;
+  disburseTxId?: string;
+  completeTxId?: string;
+}
+
+export interface AssocPendingPayment {
+  residentId: string;
+  memberName: string;
+  obligationId: string;
+  name: string;
+  amount: number;
+  date: string;
+}
+
+export interface AssocFundOverview {
+  association: string;
+  balance: number;
+  txs: AssocTransaction[];
+  loans: AssocLoan[];
+  bankInfo: { bankName: string; accountNumber: string; accountHolder: string };
+  feeObligations: FundObligationDef[];
+  pendingPayments: AssocPendingPayment[];
+  members: AssociationMember[];
 }

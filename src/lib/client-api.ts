@@ -14,7 +14,7 @@ export class ClientApiError extends Error {
 // cookies()/headers() nên không thể gọi thẳng BE như apiFetch() (server-only).
 export async function clientApi<T>(
   path: string,
-  options: { method?: 'GET' | 'POST' | 'PATCH'; body?: unknown } = {},
+  options: { method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'; body?: unknown } = {},
 ): Promise<T> {
   const res = await fetch(`/api/backend/${path}`, {
     method: options.method || 'GET',

@@ -34,3 +34,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   return forward(request, (await params).path);
 }
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  return forward(request, (await params).path);
+}

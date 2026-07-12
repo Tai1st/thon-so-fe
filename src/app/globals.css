@@ -68,3 +68,34 @@ body {
     stroke-dashoffset: -40;
   }
 }
+
+/* Bảng dữ liệu nhiều cột (danh bạ, quỹ thôn, tài khoản...) — bọc ngoài
+   bằng .table-scroll-wrap (position: relative, không cuộn) rồi
+   .table-scroll (overflow-x: auto, cuộn thật) để đặt fade-hint (::after)
+   tách khỏi phần tử cuộn. Cuộn CẢ BẢNG như 1 khối — không cố định cột nào
+   (đã bỏ sticky-column theo yêu cầu, tránh cảm giác chỉ phần giữa cuộn
+   được còn 2 biên đứng yên). */
+.table-scroll-wrap {
+  position: relative;
+}
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+/* Fade mờ mép phải gợi ý bảng còn nội dung để cuộn tiếp — cố định theo
+   khung nhìn (không theo vị trí cuộn), chỉ mang tính gợi ý nên không cần
+   JS theo dõi scrollLeft. */
+.table-scroll-wrap::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  background: linear-gradient(to right, transparent, rgba(41, 37, 36, 0.08));
+  pointer-events: none;
+}

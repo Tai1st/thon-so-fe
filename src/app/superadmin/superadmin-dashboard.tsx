@@ -12,7 +12,7 @@ import type { CommuneDetail, CommuneListItem } from '@/lib/types';
 // vs superadmin_session). Truyền path đầy đủ qua clientApi's path param.
 async function superAdminClientApi<T>(
   path: string,
-  options: { method?: 'GET' | 'POST' | 'PATCH'; body?: unknown } = {},
+  options: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown } = {},
 ): Promise<T> {
   const res = await fetch(`/api/superadmin-backend/${path}`, {
     method: options.method || 'GET',
@@ -33,8 +33,8 @@ export function SuperAdminDashboard({
 }) {
   const router = useRouter();
   const [tenants, setTenants] = useState(initialTenants);
-  const [showCreate, setShowCreate] = useState(false);
   const [assigningTenant, setAssigningTenant] = useState<TenantRow | null>(null);
+  const [deletingTenant, setDeletingTenant] = useState<TenantRow | null>(null);
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const communeById = new Map(communes.map((c) => [c._id, c]));
 
@@ -65,6 +65,18 @@ export function SuperAdminDashboard({
     await fetch('/api/superadmin/auth/logout', { method: 'POST' });
     router.push('/superadmin/login');
     router.refresh();
+  }
+
+  async function confirmDeleteTenant() {
+    if (!deletingTenant) return;
+    try {
+      await superAdminClientApi(`superadmin/tenants/${deletingTenant._id}`, { method: 'DELETE' });
+      setDeletingTenant(null);
+      await refresh();
+      showNotice('success', `Đã xóa tenant "${deletingTenant.name}".`);
+    } catch (err) {
+      showNotice('error', err instanceof ClientApiError ? err.message : 'Không thể xóa tenant.');
+    }
   }
 
   return (
@@ -107,12 +119,12 @@ export function SuperAdminDashboard({
 
         <div className="flex items-center justify-between">
           <span className="text-xs text-stone-400">{tenants.length} tenant</span>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-500"
+          <Link
+            href="/superadmin/communes"
+            className="rounded-xl border border-stone-700 px-4 py-2 text-xs font-semibold text-stone-300 hover:border-emerald-500 hover:text-emerald-400"
           >
-            <i className="fa-solid fa-plus mr-1" /> Tạo tenant mới
-          </button>
+            <i className="fa-solid fa-map-location-dot mr-1" /> Tạo tenant mới từ bản đồ
+          </Link>
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-stone-800 bg-stone-900">
@@ -171,6 +183,12 @@ export function SuperAdminDashboard({
                       >
                         {t.archivedAt ? 'Mở khóa' : 'Khóa'}
                       </button>
+                      <button
+                        onClick={() => setDeletingTenant(t)}
+                        className="rounded bg-red-950/50 px-2.5 py-1 text-[11px] font-semibold text-red-400 transition-all hover:bg-red-600 hover:text-white"
+                      >
+                        Xóa
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -187,17 +205,6 @@ export function SuperAdminDashboard({
         </div>
       </div>
 
-      {showCreate && (
-        <CreateTenantModal
-          onClose={() => setShowCreate(false)}
-          onSuccess={async () => {
-            setShowCreate(false);
-            await refresh();
-            showNotice('success', 'Đã tạo tenant mới thành công.');
-          }}
-        />
-      )}
-
       {assigningTenant && (
         <AssignVillageModal
           tenant={assigningTenant}
@@ -210,73 +217,40 @@ export function SuperAdminDashboard({
           }}
         />
       )}
-    </div>
-  );
-}
 
-function CreateTenantModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const [form, setForm] = useState({
-    slug: '',
-    name: '',
-    adminUsername: '',
-    adminPassword: '',
-    adminName: '',
-  });
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    if (!/^[a-z0-9-]+$/.test(form.slug)) {
-      setError('Slug chỉ được chứa chữ thường, số và dấu gạch nối.');
-      return;
-    }
-    if (!form.name || !form.adminUsername || !form.adminPassword || !form.adminName) {
-      setError('Vui lòng nhập đầy đủ thông tin.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await superAdminClientApi('superadmin/tenants', { method: 'POST', body: form });
-      onSuccess();
-    } catch (err) {
-      setError(err instanceof ClientApiError ? err.message : 'Không thể tạo tenant.');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-stone-800 bg-stone-900 shadow-2xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-stone-800 p-6">
-          <h3 className="font-serif text-base font-bold uppercase tracking-wider text-white">Tạo tenant mới</h3>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-700 bg-stone-800 text-stone-400 hover:border-red-500 hover:text-red-400">
-            <i className="fa-solid fa-xmark" />
-          </button>
-        </div>
-        <form onSubmit={submit} className="flex-1 space-y-3 overflow-y-auto p-6">
-          <Field label="Slug (subdomain) *" placeholder="VD: doan-ket-2" value={form.slug} onChange={(v) => setForm({ ...form, slug: v.toLowerCase() })} />
-          <Field label="Tên thôn *" placeholder="VD: Thôn Đoàn Kết 2" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
-          <div className="border-t border-stone-800 pt-3">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Tài khoản Admin đầu tiên</p>
-            <div className="space-y-3">
-              <Field label="Tên đăng nhập *" value={form.adminUsername} onChange={(v) => setForm({ ...form, adminUsername: v })} />
-              <Field label="Mật khẩu *" type="password" value={form.adminPassword} onChange={(v) => setForm({ ...form, adminPassword: v })} />
-              <Field label="Họ và tên *" value={form.adminName} onChange={(v) => setForm({ ...form, adminName: v })} />
+      {deletingTenant && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-sm space-y-4 rounded-3xl border border-stone-800 bg-stone-900 p-6 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif text-base font-bold uppercase tracking-wider text-white">Xác nhận xóa tenant</h3>
+              <button
+                onClick={() => setDeletingTenant(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-700 bg-stone-800 text-stone-400 hover:border-red-500 hover:text-red-400"
+              >
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <p className="text-xs text-stone-400">
+              Bạn có chắc muốn xóa tenant &quot;{deletingTenant.name}&quot;? Toàn bộ tài khoản, nhân khẩu và dữ liệu liên
+              quan sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeletingTenant(null)}
+                className="w-full rounded-xl border border-stone-700 bg-stone-800 py-2.5 text-xs font-bold uppercase text-stone-300 hover:bg-stone-700"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmDeleteTenant}
+                className="w-full rounded-xl bg-red-600 py-2.5 text-xs font-bold uppercase text-white hover:bg-red-500"
+              >
+                Xóa
+              </button>
             </div>
           </div>
-          {error && <p className="text-[11px] font-semibold text-red-400">{error}</p>}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-xl bg-emerald-600 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all hover:bg-emerald-500 disabled:opacity-50"
-          >
-            Tạo tenant
-          </button>
-        </form>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -408,33 +382,6 @@ function AssignVillageModal({
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = 'text',
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">{label}</label>
-      <input
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-stone-700 bg-stone-800 px-3 py-2 text-xs text-white outline-none transition-colors focus:border-emerald-500"
-      />
     </div>
   );
 }
