@@ -22,6 +22,17 @@ body {
   font-family: var(--font-sans), sans-serif;
 }
 
+/* Ẩn thanh cuộn ngang của carousel hero mobile + gallery (vẫn cuộn được
+   bằng vuốt/snap, chỉ ẩn thanh cuộn), khớp .no-scrollbar trong style.css
+   bản mẫu gốc. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* leaflet.css tự set font Helvetica Neue/Arial cho .leaflet-container, đè
    lên font-sans (Montserrat) của toàn trang — trả lại đúng font, y hệt
    ghi chú trong tra-cuu.html gốc (bản mẫu gặp đúng vấn đề này). */

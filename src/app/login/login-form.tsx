@@ -4,22 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-const DEMO_PASSWORD = 'doanket';
-
-// Danh sách tài khoản kiểm thử nhanh — khớp đúng defaultAccounts của bản
-// mẫu (E:\Dev\cong-thong-tin-thon\js\data.js), chỉ dùng cho môi trường dev.
-const PRESETS = [
-  { username: '066080004452', label: 'Cư dân', meta: 'Mã hộ: FAM-082', icon: 'fa-user', color: 'text-primary-600' },
-  { username: '066073009900', label: 'Cán bộ Hội', meta: 'Hội Nông dân', icon: 'fa-users', color: 'text-amber-600' },
-  { username: '066070001234', label: 'Trưởng thôn', meta: 'Quản lý chung', icon: 'fa-landmark', color: 'text-emerald-600' },
-  { username: 'admin', label: 'Admin', meta: 'Kiểm duyệt tối cao', icon: 'fa-user-gear', color: 'text-red-600' },
-  { username: '066088004321', label: 'Tổ ANTT', meta: 'An ninh trật tự', icon: 'fa-shield-halved', color: 'text-amber-600' },
-];
-
 export function LoginForm({ siteName, logoUrl }: { siteName: string; logoUrl: string }) {
   const router = useRouter();
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -123,33 +111,6 @@ export function LoginForm({ siteName, logoUrl }: { siteName: string; logoUrl: st
                   {loading ? 'Đang xác thực...' : 'Xác thực truy cập hệ thống'}
                 </button>
               </form>
-            </div>
-          </div>
-
-          <div className="space-y-2 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">
-              Chọn nhanh tài khoản kiểm thử:
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              {PRESETS.map((p, i) => (
-                <button
-                  key={p.username}
-                  type="button"
-                  onClick={() => {
-                    setUsername(p.username);
-                    setPassword(DEMO_PASSWORD);
-                  }}
-                  className="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 p-2.5 text-left text-xs text-stone-600 transition-all hover:border-primary-400 hover:bg-primary-50/50"
-                >
-                  <i className={`fa-solid ${p.icon} ${p.color}`}></i>
-                  <div>
-                    <span className="block text-[11px] font-bold text-stone-900">
-                      {i + 1}. {p.label}
-                    </span>
-                    <span className="block text-[9px] leading-tight text-stone-400">{p.meta}</span>
-                  </div>
-                </button>
-              ))}
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { clientApi, ClientApiError } from '@/lib/client-api';
 import type { GalleryItem, HomeContent, NewsItem, Product, ScheduleItem, Stat } from '@/lib/types';
+import { extractImageUrl } from '@/lib/extract-image-url';
 import { ConfirmDeleteModal } from './confirm-delete-modal';
 
 const NEWS_CATEGORIES = [
@@ -43,8 +44,8 @@ export function AdminHomeContentTab({
         method: 'PUT',
         body: {
           siteName,
-          logoUrl: String(form.get('logoUrl') || ''),
-          heroImage: String(form.get('heroImage') || ''),
+          logoUrl: extractImageUrl(String(form.get('logoUrl') || '')),
+          heroImage: extractImageUrl(String(form.get('heroImage') || '')),
         },
       });
       await refresh();
@@ -383,7 +384,7 @@ function ProductsSection({ products, onChange, showNotice }: { products: Product
     const body = {
       name: String(form.get('name') || ''),
       badge: String(form.get('badge') || ''),
-      image: String(form.get('image') || ''),
+      image: extractImageUrl(String(form.get('image') || '')),
       desc: String(form.get('desc') || ''),
       footerLabel: String(form.get('footerLabel') || ''),
       footerValue: String(form.get('footerValue') || ''),
@@ -719,12 +720,13 @@ function StatsSection({
 
 function GallerySection({ gallery, onChange, showNotice }: { gallery: GalleryItem[]; onChange: () => void; showNotice: Notice }) {
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<GalleryItem | null>(null);
   const [deleting, setDeleting] = useState<GalleryItem | null>(null);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const body = { image: String(form.get('image') || ''), caption: String(form.get('caption') || '') };
+    const body = { image: extractImageUrl(String(form.get('image') || '')), caption: String(form.get('caption') || '') };
     try {
       await clientApi('admin/home-content/gallery', { method: 'POST', body });
       setAdding(false);
@@ -732,6 +734,21 @@ function GallerySection({ gallery, onChange, showNotice }: { gallery: GalleryIte
       showNotice('success', 'Đã thêm ảnh vào thư viện.');
     } catch (err) {
       showNotice('error', err instanceof ClientApiError ? err.message : 'Không thể thêm ảnh.');
+    }
+  }
+
+  async function submitEdit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editing) return;
+    const form = new FormData(e.currentTarget);
+    const body = { image: extractImageUrl(String(form.get('image') || '')), caption: String(form.get('caption') || '') };
+    try {
+      await clientApi(`admin/home-content/gallery/${editing.id}`, { method: 'PATCH', body });
+      setEditing(null);
+      onChange();
+      showNotice('success', 'Đã cập nhật ảnh.');
+    } catch (err) {
+      showNotice('error', err instanceof ClientApiError ? err.message : 'Không thể cập nhật.');
     }
   }
 
@@ -771,15 +788,43 @@ function GallerySection({ gallery, onChange, showNotice }: { gallery: GalleryIte
           <div key={g.id} className="space-y-1.5 rounded-xl border border-stone-200 bg-stone-50 p-2">
             <img src={g.image} alt={g.caption} className="h-24 w-full rounded-lg object-cover" />
             <span className="block truncate text-[10px] text-stone-500">{g.caption}</span>
-            <button
-              onClick={() => setDeleting(g)}
-              className="w-full rounded bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-600 hover:bg-red-600 hover:text-white"
-            >
-              Xóa
-            </button>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setEditing(g)}
+                className="w-full rounded border border-stone-200 bg-white px-2 py-1 text-[10px] text-stone-600 hover:bg-stone-100"
+              >
+                Sửa
+              </button>
+              <button
+                onClick={() => setDeleting(g)}
+                className="w-full rounded bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-600 hover:bg-red-600 hover:text-white"
+              >
+                Xóa
+              </button>
+            </div>
           </div>
         ))}
       </div>
+
+      {editing && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-stone-950/80 p-4">
+          <div className="w-full max-w-md space-y-3 rounded-3xl border border-stone-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h5 className="text-xs font-bold uppercase tracking-wider text-stone-900">Sửa ảnh</h5>
+              <button onClick={() => setEditing(null)} className="text-stone-400 hover:text-stone-900">
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <form onSubmit={submitEdit} className="space-y-2">
+              <TextInput name="image" label="URL ảnh" defaultValue={editing.image} />
+              <TextInput name="caption" label="Chú thích" defaultValue={editing.caption} />
+              <button type="submit" className="w-full rounded-xl bg-primary-600 py-2.5 text-xs font-bold uppercase text-white hover:bg-primary-500">
+                Lưu
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {deleting && (
         <ConfirmDeleteModal

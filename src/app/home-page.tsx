@@ -38,7 +38,22 @@ export function VillageHomePage({
   const [infoModal, setInfoModal] = useState<'leadership' | 'security' | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [mobileSearchValue, setMobileSearchValue] = useState('');
+  const [mobileHeroSlide, setMobileHeroSlide] = useState(0);
   const galleryRef = useRef<HTMLDivElement>(null);
+  const mobileHeroTrackRef = useRef<HTMLDivElement>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
+
+  function focusMobileSearch() {
+    mobileSearchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    mobileSearchInputRef.current?.focus();
+  }
+
+  function handleMobileHeroScroll() {
+    const track = mobileHeroTrackRef.current;
+    if (!track) return;
+    setMobileHeroSlide(Math.round(track.scrollLeft / track.clientWidth));
+  }
 
   const visibleNews = newsFilter === 'all' ? content.news : content.news.filter((n) => n.categorySlug === newsFilter);
   const chief = roster.security.find((m) => m.title === 'Tổ Trưởng');
@@ -47,9 +62,26 @@ export function VillageHomePage({
   const siteName = content.siteName || 'Thôn Đoàn Kết';
   const logoUrl = content.logoUrl || '/logo.png';
   const heroImage = content.heroImage || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600';
+  const oldVillageNames = (content.oldVillages || []).map((v) => (v.toLowerCase().startsWith('thôn') ? v : `Thôn ${v}`));
+  const mergerClause =
+    oldVillageNames.length >= 2
+      ? `Sau dấu mốc lịch sử sáp nhập giữa ${oldVillageNames.slice(0, -1).join(', ')} và ${oldVillageNames[oldVillageNames.length - 1]}`
+      : `Cùng chung tay xây dựng ${siteName}`;
+  const heroIntro = `${mergerClause}, chúng ta cùng xây dựng một cộng đồng đoàn kết - phát triển - văn minh - bền vững, hướng tới nông nghiệp công nghệ cao và hệ thống chính trị cơ sở vững mạnh.`;
+  const heroIntroShort = `${mergerClause}, chúng ta cùng xây dựng cộng đồng đoàn kết – phát triển – văn minh – bền vững.`;
 
   function scrollGallery(dir: number) {
     galleryRef.current?.scrollBy({ left: dir * 300, behavior: 'smooth' });
+  }
+
+  // Trang danh mục tra cứu thôn/buôn nằm ở domain gốc (không có subdomain),
+  // khác origin với trang chủ 1 thôn cụ thể — phải điều hướng bằng tách
+  // nhãn đầu (subdomain) khỏi host hiện tại, không dùng Link/href tương đối.
+  function goToDirectory() {
+    const host = window.location.host;
+    const parts = host.split('.');
+    const rootHost = parts.length > 1 ? parts.slice(1).join('.') : host;
+    window.location.href = `${window.location.protocol}//${rootHost}/`;
   }
 
   return (
@@ -102,6 +134,15 @@ export function VillageHomePage({
                 </a>
               ),
             )}
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                goToDirectory();
+              }}
+              className="block w-full rounded-lg px-3 py-2.5 text-left transition-all hover:bg-primary-700"
+            >
+              Tra cứu Thôn/Buôn
+            </button>
             <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block rounded-lg px-3 py-2.5 transition-all hover:bg-primary-700">
               Đăng nhập hệ thống
             </Link>
@@ -161,12 +202,17 @@ export function VillageHomePage({
                   ['system', 'Ban tự quản'],
                   ['security', 'An ninh trật tự'],
                   ['services', 'Dịch vụ công'],
-                  ['gallery', 'Liên hệ'],
                 ].map(([href, label]) => (
                   <a key={href} href={`#${href}`} className="rounded-lg px-3 py-2 transition-colors hover:bg-primary-600">
                     {label}
                   </a>
                 ))}
+                <button onClick={goToDirectory} className="rounded-lg px-3 py-2 uppercase transition-colors hover:bg-primary-600">
+                  Tra cứu Thôn/Buôn
+                </button>
+                <a href="#gallery" className="rounded-lg px-3 py-2 transition-colors hover:bg-primary-600">
+                  Liên hệ
+                </a>
               </div>
               <Link
                 href="/login"
@@ -178,6 +224,136 @@ export function VillageHomePage({
           </div>
         </nav>
       </header>
+
+      {/* ===== MOBILE HERO CAROUSEL + QUICK ICONS (< lg) ===== */}
+      <section className="px-4 pt-4 lg:hidden">
+        <div
+          ref={mobileHeroTrackRef}
+          onScroll={handleMobileHeroScroll}
+          className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto rounded-2xl"
+        >
+          <div className="grid w-full shrink-0 snap-center grid-cols-2 gap-3">
+            <div className="flex flex-col justify-center space-y-2 rounded-2xl bg-primary-800 p-4 text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-[11px]">
+                <i className="fa-solid fa-star"></i>
+              </span>
+              <h2 className="font-serif text-sm font-black leading-snug">TẦM VÓC MỚI – KHÁT VỌNG MỚI</h2>
+              <p className="text-[11px] leading-relaxed text-primary-100">{heroIntroShort}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 rounded-2xl border border-stone-200 bg-white p-3">
+              {content.stats.map((s) => (
+                <div key={s.id} className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-xs text-primary-600">
+                    <i className={`fa-solid ${s.icon}`}></i>
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-black leading-none text-stone-900">
+                      {s.value} <span className="text-[10px] font-semibold text-primary-600">{s.unit}</span>
+                    </p>
+                    <p className="truncate text-[9px] text-stone-400">{s.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="w-full shrink-0 snap-center">
+            <div className="relative h-56 overflow-hidden rounded-2xl">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={content.gallery[0]?.image || heroImage}
+                alt="Hoạt động thôn"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-stone-950/85 to-transparent"></div>
+              <div className="absolute bottom-0 left-0 right-0 p-4">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-primary-300">Hình ảnh hoạt động</span>
+                <p className="mt-1 text-sm font-semibold leading-snug text-white">
+                  {content.gallery[0]?.caption || 'Hoạt động nổi bật của thôn'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="w-full shrink-0 snap-center">
+            <div className="flex h-56 flex-col items-center justify-center gap-2 rounded-2xl bg-red-600 p-5 text-center text-white">
+              <i className="fa-solid fa-shield-halved text-3xl"></i>
+              <h3 className="text-sm font-bold uppercase tracking-wide">Đường dây nóng An ninh trật tự</h3>
+              <p className="text-[11px] text-red-100">Tiếp nhận thông tin – Xử lý kịp thời 24/7</p>
+              <a href={`tel:${content.security.hotline}`} className="mt-1 rounded-lg bg-white px-4 py-2 text-sm font-black text-red-600">
+                {content.security.hotlineDisplay}
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5 pt-3">
+          {[0, 1, 2].map((i) => (
+            <span key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${mobileHeroSlide === i ? 'bg-primary-600' : 'bg-stone-300'}`} />
+          ))}
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 pt-4">
+          <a href="#news" className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-white py-4 shadow-sm">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
+              <i className="fa-solid fa-bullhorn"></i>
+            </span>
+            <span className="text-center text-[11px] font-semibold leading-tight text-stone-600">Thông báo</span>
+          </a>
+          <a href="#nong-san" className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-white py-4 shadow-sm">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
+              <i className="fa-solid fa-leaf"></i>
+            </span>
+            <span className="text-center text-[11px] font-semibold leading-tight text-stone-600">Sản vật địa phương</span>
+          </a>
+          <a href="#system" className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-white py-4 shadow-sm">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+              <i className="fa-solid fa-people-group"></i>
+            </span>
+            <span className="text-center text-[11px] font-semibold leading-tight text-stone-600">Ban tự quản</span>
+          </a>
+          <a href="#security" className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-white py-4 shadow-sm">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+              <i className="fa-solid fa-shield-halved"></i>
+            </span>
+            <span className="text-center text-[11px] font-semibold leading-tight text-stone-600">Tổ ANTT cơ sở</span>
+          </a>
+          <a href="#services" className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-white py-4 shadow-sm">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+              <i className="fa-solid fa-building-shield"></i>
+            </span>
+            <span className="text-center text-[11px] font-semibold leading-tight text-stone-600">Dịch vụ công</span>
+          </a>
+          <button type="button" onClick={focusMobileSearch} className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-white py-4 shadow-sm">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
+              <i className="fa-solid fa-magnifying-glass"></i>
+            </span>
+            <span className="text-center text-[11px] font-semibold leading-tight text-stone-600">Tra cứu</span>
+          </button>
+        </div>
+
+        <div className="pt-3">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              runSiteSearch(mobileSearchValue);
+            }}
+            className="relative"
+          >
+            <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-stone-400 transition-colors hover:text-primary-600">
+              <i className="fa-solid fa-magnifying-glass"></i>
+            </button>
+            <input
+              ref={mobileSearchInputRef}
+              type="text"
+              value={mobileSearchValue}
+              onChange={(e) => setMobileSearchValue(e.target.value)}
+              placeholder="Tìm kiếm thông tin..."
+              className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-9 pr-3 text-sm text-stone-700 placeholder:text-stone-400 outline-none transition-all focus:ring-2 focus:ring-primary-400"
+            />
+          </form>
+        </div>
+      </section>
 
       <main id="home" className="flex-1">
         {/* Hero + Bảng tin */}
@@ -196,11 +372,7 @@ export function VillageHomePage({
                   <span className="h-1.5 w-1.5 rounded-full bg-primary-300"></span> Đắk Lắk · Việt Nam
                 </span>
                 <h2 className="font-serif text-3xl font-black leading-tight text-white md:text-4xl">TẦM VÓC MỚI – KHÁT VỌNG MỚI</h2>
-                <p className="text-sm leading-relaxed text-stone-200">
-                  Sau dấu mốc lịch sử sáp nhập giữa Thôn Đoàn Kết (cũ) và Thôn Yên Khánh (cũ), chúng ta cùng xây dựng một
-                  cộng đồng đoàn kết - phát triển - văn minh - bền vững, hướng tới nông nghiệp công nghệ cao và hệ thống
-                  chính trị cơ sở vững mạnh.
-                </p>
+                <p className="text-sm leading-relaxed text-stone-200">{heroIntro}</p>
                 <a
                   href="#about"
                   className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-lg transition-colors hover:bg-primary-500"
@@ -208,17 +380,6 @@ export function VillageHomePage({
                   Xem chi tiết <i className="fa-solid fa-arrow-right text-[10px]"></i>
                 </a>
               </div>
-            </div>
-            {/* Hero rút gọn cho mobile */}
-            <div className="rounded-2xl bg-primary-800 p-5 text-white lg:hidden">
-              <span className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-[11px]">
-                <i className="fa-solid fa-star"></i>
-              </span>
-              <h2 className="font-serif text-base font-black leading-snug">TẦM VÓC MỚI – KHÁT VỌNG MỚI</h2>
-              <p className="mt-2 text-xs leading-relaxed text-primary-100">
-                Sau sáp nhập Thôn Đoàn Kết (cũ) và Thôn Yên Khánh (cũ), chúng ta cùng xây dựng cộng đồng đoàn kết – phát
-                triển – văn minh – bền vững.
-              </p>
             </div>
 
             <div id="news" className="scroll-mt-20 flex flex-col rounded-3xl border border-stone-200 bg-white shadow-sm lg:col-span-4">
@@ -473,7 +634,7 @@ export function VillageHomePage({
                   </button>
                 </div>
               </div>
-              <div ref={galleryRef} className="flex gap-4 overflow-x-auto scroll-smooth pb-1">
+              <div ref={galleryRef} className="no-scrollbar flex gap-4 overflow-x-auto scroll-smooth pb-1">
                 {content.gallery.map((g) => (
                   <div key={g.id} className="w-56 shrink-0 overflow-hidden rounded-xl border border-stone-100">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -542,10 +703,10 @@ export function VillageHomePage({
           </span>
           <span className="mt-0.5 text-[9px] font-semibold text-primary-700">Phản ánh ANTT</span>
         </Link>
-        <a href="#nong-san" className="flex flex-col items-center justify-center gap-1 py-2 text-stone-500">
+        <button type="button" onClick={focusMobileSearch} className="flex flex-col items-center justify-center gap-1 py-2 text-stone-500">
           <i className="fa-solid fa-magnifying-glass text-lg"></i>
           <span className="text-[10px] font-semibold">Tra cứu</span>
-        </a>
+        </button>
         <Link href="/login" className="flex flex-col items-center justify-center gap-1 py-2 text-stone-500">
           <i className="fa-regular fa-user text-lg"></i>
           <span className="text-[10px] font-semibold">Tài khoản</span>
