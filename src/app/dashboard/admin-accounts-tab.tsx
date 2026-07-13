@@ -66,6 +66,7 @@ type ImportRow = {
   gender: string;
   cccd: string;
   isHouseholder: boolean;
+  headRef: string;
   groupKey: string;
   permanentAddress: string;
   fatherName: string;
@@ -122,6 +123,54 @@ function downloadImportTemplate() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Cư dân");
   XLSX.writeFile(wb, "mau-nhap-cu-dan.xlsx");
+}
+
+// Xuất lại các dòng chưa nhập được (lỗi client hoặc bị BE từ chối) ra đúng
+// định dạng file mẫu kèm cột "Lỗi" — để chỉnh sửa rồi chọn lại file này.
+function downloadFailedRowsFile(rows: ImportRow[]) {
+  const headers = [...Object.keys(EXCEL_HEADER_MAP), "Lỗi"];
+  const data = rows.map((r) => [
+    r.name,
+    r.dob,
+    r.gender === "male" ? "Nam" : r.gender === "female" ? "Nữ" : "",
+    r.cccd,
+    r.headRef,
+    r.groupKey,
+    r.permanentAddress,
+    r.fatherName,
+    r.motherName,
+    r.phone,
+    r.error || "",
+  ]);
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Cần sửa lại");
+  XLSX.writeFile(wb, "cu-dan-loi.xlsx");
+}
+
+// Chia thành các batch để gọi API lần lượt (tránh 1 request quá lớn +
+// hiển thị tiến trình) — không tách rời các dòng cùng 1 hộ (Số Hộ Tịch)
+// ra 2 batch khác nhau, vì mỗi lần gọi API chỉ nhận diện được chủ hộ
+// trong phạm vi các dòng gửi lên cùng lúc.
+function chunkRowsByGroup<T extends { r: ImportRow; i: number }>(items: T[], batchSize: number): T[][] {
+  const groups = new Map<string, T[]>();
+  items.forEach((item, idx) => {
+    const key = item.r.groupKey || `__no_group_${idx}`;
+    const list = groups.get(key) || [];
+    list.push(item);
+    groups.set(key, list);
+  });
+  const batches: T[][] = [];
+  let current: T[] = [];
+  for (const group of groups.values()) {
+    if (current.length > 0 && current.length + group.length > batchSize) {
+      batches.push(current);
+      current = [];
+    }
+    current.push(...group);
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
 }
 
 function normalizeHeader(h: string): string {
@@ -202,6 +251,7 @@ function mapRawImportRow(
     gender,
     cccd: get("cccd").replace(/\D/g, ""),
     isHouseholder,
+    headRef: get("headRef"),
     groupKey: get("groupKey"),
     permanentAddress: get("permanentAddress"),
     fatherName: get("fatherName"),
@@ -1477,25 +1527,22 @@ function ImportResidentsModal({
   onClose: () => void;
   onSuccess: (msg: string) => void;
 }) {
+  const BATCH_SIZE = 200;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [fileName, setFileName] = useState("");
   const [parseError, setParseError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [result, setResult] = useState<{
-    created: number;
-    skipped: number;
-    failed: number;
-    results: { row: number; name: string; status: string; reason?: string }[];
-  } | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [summary, setSummary] = useState<{ created: number; skipped: number; failed: number } | null>(null);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
     setParseError("");
-    setResult(null);
+    setSummary(null);
     try {
       const table = await parseExcelFile(file);
       if (table.length < 2) {
@@ -1523,52 +1570,92 @@ function ImportResidentsModal({
     }
   }
 
-  const hasErrors = rows.some((r) => r.error);
+  const validCount = rows.filter((r) => !r.error).length;
 
+  // Gửi theo từng batch (giữ nguyên nhóm hộ trong 1 batch) — dòng nào
+  // BE báo tạo thành công hoặc bỏ qua (CCCD trùng) sẽ bị xóa khỏi danh
+  // sách; dòng lỗi (client hoặc BE từ chối) được giữ lại kèm lý do để
+  // sửa và nhập lại, không cần chọn lại từ đầu toàn bộ file.
   async function submit() {
     setSubmitting(true);
     setSubmitError("");
-    try {
-      const res = await clientApi<{
-        created: number;
-        skipped: number;
-        failed: number;
-        results: {
-          row: number;
-          name: string;
-          status: string;
-          reason?: string;
-        }[];
-      }>("admin/accounts/residents/bulk-import", {
-        method: "POST",
-        body: {
-          rows: rows.map((r) => ({
-            name: r.name,
-            dob: r.dob,
-            gender: r.gender,
-            cccd: r.cccd,
-            isHouseholder: r.isHouseholder,
-            groupKey: r.groupKey,
-            permanentAddress: r.permanentAddress,
-            fatherName: r.fatherName,
-            motherName: r.motherName,
-            phone: r.phone,
-          })),
-        },
-      });
-      setResult(res);
-      if (res.failed === 0) {
-        onSuccess(
-          `Đã nhập thành công ${res.created} cư dân từ file Excel.${res.skipped > 0 ? ` Bỏ qua ${res.skipped} dòng đã có CCCD trùng.` : ""}`,
-        );
+    setSummary(null);
+
+    const pending = rows
+      .map((r, i) => ({ r, i }))
+      .filter(({ r }) => !r.error);
+    const batches = chunkRowsByGroup(pending, BATCH_SIZE);
+
+    let totalCreated = 0;
+    let totalSkipped = 0;
+    let totalFailed = 0;
+    const doneIndexes = new Set<number>();
+    const failReasonByIndex = new Map<number, string>();
+
+    setProgress({ done: 0, total: pending.length });
+
+    for (const batch of batches) {
+      try {
+        const res = await clientApi<{
+          created: number;
+          skipped: number;
+          failed: number;
+          results: { row: number; name: string; status: string; reason?: string }[];
+        }>("admin/accounts/residents/bulk-import", {
+          method: "POST",
+          body: {
+            rows: batch.map(({ r }) => ({
+              name: r.name,
+              dob: r.dob,
+              gender: r.gender,
+              cccd: r.cccd,
+              isHouseholder: r.isHouseholder,
+              groupKey: r.groupKey,
+              permanentAddress: r.permanentAddress,
+              fatherName: r.fatherName,
+              motherName: r.motherName,
+              phone: r.phone,
+            })),
+          },
+        });
+        totalCreated += res.created;
+        totalSkipped += res.skipped;
+        totalFailed += res.failed;
+        res.results.forEach((rr) => {
+          const orig = batch[rr.row - 1]?.i;
+          if (orig === undefined) return;
+          if (rr.status === "failed") failReasonByIndex.set(orig, rr.reason || "Lỗi không xác định.");
+          else doneIndexes.add(orig);
+        });
+      } catch (err) {
+        // Cả batch lỗi (vd mất kết nối) — giữ nguyên các dòng này để thử lại.
+        const msg = err instanceof ClientApiError ? err.message : "Lỗi kết nối, thử lại.";
+        batch.forEach(({ i }) => failReasonByIndex.set(i, msg));
+        totalFailed += batch.length;
       }
-    } catch (err) {
-      setSubmitError(
-        err instanceof ClientApiError ? err.message : "Không thể nhập dữ liệu.",
-      );
-    } finally {
-      setSubmitting(false);
+      setProgress((p) => (p ? { done: Math.min(p.done + batch.length, p.total), total: p.total } : p));
     }
+
+    // Cập nhật lỗi cho các dòng bị BE từ chối, đồng thời loại bỏ các dòng
+    // đã xử lý xong (tạo mới hoặc bỏ qua) khỏi danh sách hiển thị.
+    setRows((prev) => {
+      const kept: ImportRow[] = [];
+      prev.forEach((r, i) => {
+        if (doneIndexes.has(i)) return;
+        const reason = failReasonByIndex.get(i);
+        kept.push(reason ? { ...r, error: reason } : r);
+      });
+      return kept;
+    });
+
+    setProgress(null);
+    setSummary({ created: totalCreated, skipped: totalSkipped, failed: totalFailed });
+    if (totalFailed === 0) {
+      onSuccess(
+        `Đã nhập thành công ${totalCreated} cư dân từ file Excel.${totalSkipped > 0 ? ` Bỏ qua ${totalSkipped} dòng đã có CCCD trùng.` : ""}`,
+      );
+    }
+    setSubmitting(false);
   }
 
   return (
@@ -1678,34 +1765,43 @@ function ImportResidentsModal({
                 </div>
               </div>
               <p className="text-xs text-stone-500">
-                Tổng {rows.length} dòng — {rows.filter((r) => !r.error).length}{" "}
-                hợp lệ, {rows.filter((r) => r.error).length} lỗi.
-                {hasErrors &&
-                  " Sửa lỗi trong file rồi chọn lại trước khi nhập."}
+                Tổng {rows.length} dòng — {validCount} hợp lệ,{" "}
+                {rows.filter((r) => r.error).length} lỗi.
+                {rows.some((r) => r.error) &&
+                  " Các dòng lỗi sẽ không được gửi lên; sửa xong có thể chọn lại file hoặc tải file lỗi bên dưới để chỉnh."}
               </p>
             </>
           )}
 
-          {result && (
+          {progress && (
+            <div className="space-y-1.5">
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-stone-200">
+                <div
+                  className="h-full rounded-full bg-primary-600 transition-all"
+                  style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-stone-500">
+                Đang xử lý {progress.done}/{progress.total} dòng...
+              </p>
+            </div>
+          )}
+
+          {summary && (
             <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-4 text-xs">
               <p className="font-semibold text-stone-700">
-                Kết quả: tạo mới {result.created} cư dân, bỏ qua{" "}
-                {result.skipped} (CCCD đã tồn tại), {result.failed} dòng lỗi.
+                Kết quả: tạo mới {summary.created} cư dân, bỏ qua {summary.skipped} (CCCD đã tồn tại),{" "}
+                {summary.failed} dòng lỗi.
+                {summary.failed > 0 && " Các dòng lỗi vẫn còn trong bảng phía trên kèm lý do — sửa rồi bấm nhập lại."}
               </p>
-              {result.results
-                .filter((r) => r.status === "skipped")
-                .map((r) => (
-                  <p key={r.row} className="text-amber-600">
-                    Dòng {r.row} ({r.name}): {r.reason}
-                  </p>
-                ))}
-              {result.results
-                .filter((r) => r.status === "failed")
-                .map((r) => (
-                  <p key={r.row} className="text-red-600">
-                    Dòng {r.row} ({r.name}): {r.reason}
-                  </p>
-                ))}
+              {summary.failed > 0 && (
+                <button
+                  onClick={() => downloadFailedRowsFile(rows.filter((r) => r.error))}
+                  className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-stone-600 hover:bg-stone-100"
+                >
+                  <i className="fa-solid fa-file-arrow-down" /> Tải file các dòng lỗi để chỉnh
+                </button>
+              )}
             </div>
           )}
 
@@ -1716,14 +1812,14 @@ function ImportResidentsModal({
         <div className="shrink-0 border-t border-stone-100 p-6">
           <button
             onClick={submit}
-            disabled={rows.length === 0 || hasErrors || submitting}
+            disabled={validCount === 0 || submitting}
             className="w-full rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all hover:from-primary-500 hover:to-primary-600 disabled:opacity-50"
           >
             {submitting
               ? "Đang nhập..."
-              : rows.length > 0
-                ? `Xác nhận nhập ${rows.length} cư dân`
-                : "Xác nhận nhập"}
+              : validCount > 0
+                ? `Xác nhận nhập ${validCount} cư dân hợp lệ`
+                : "Không có dòng hợp lệ để nhập"}
           </button>
         </div>
       </div>
