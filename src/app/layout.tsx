@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import { Montserrat, Playfair_Display } from 'next/font/google';
+import { getTenantSlug } from '@/lib/tenant';
+import { apiFetch } from '@/lib/api';
+import type { PublicTenant } from '@/lib/types';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import 'leaflet/dist/leaflet.css';
 import './globals.css';
@@ -18,10 +21,30 @@ const playfairDisplay = Playfair_Display({
   weight: ['600', '700', '800'],
 });
 
-export const metadata: Metadata = {
-  title: 'Cổng Thông Tin Điện Tử Thôn Đoàn Kết',
-  description: 'Cổng thông tin điện tử Thôn Đoàn Kết - Xã Dliê Ya - Đắk Lắk',
+const DEFAULT_METADATA: Metadata = {
+  title: 'Cổng Thông Tin Điện Tử - Tra cứu Thôn/Buôn',
+  description: 'Cổng thông tin điện tử tra cứu các thôn/buôn trên địa bàn.',
 };
+
+// Title/description phải theo đúng tenant đang truy cập (subdomain), không
+// được hard-code tên 1 thôn cụ thể — đọc slug do middleware set rồi tra
+// tên thật qua /tenants/public (khớp danh sách hiển thị ở trang danh mục).
+export async function generateMetadata(): Promise<Metadata> {
+  const slug = await getTenantSlug();
+  if (!slug) return DEFAULT_METADATA;
+
+  try {
+    const tenants = await apiFetch<PublicTenant[]>('/tenants/public', { auth: false });
+    const tenant = tenants.find((t) => t.slug === slug);
+    if (!tenant) return DEFAULT_METADATA;
+    return {
+      title: `Cổng Thông Tin Điện Tử ${tenant.name}`,
+      description: `Cổng thông tin điện tử ${tenant.name}`,
+    };
+  } catch {
+    return DEFAULT_METADATA;
+  }
+}
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

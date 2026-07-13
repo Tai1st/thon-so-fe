@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { clientApi, ClientApiError } from '@/lib/client-api';
 import { buildResidentGroups } from '@/lib/types';
 import type { AdminAccountItem, AdminAccountsResponse, AdminResidentInfo } from '@/lib/types';
@@ -17,6 +18,108 @@ function dmyToIso(dmy: string): string {
   if (parts.length !== 3) return '';
   const [d, m, y] = parts;
   return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
+
+const EXCEL_HEADERS = {
+  name: 'Họ và tên',
+  dob: 'Ngày sinh (dd/mm/yyyy)',
+  gender: 'Giới tính (Nam/Nữ)',
+  cccd: 'CCCD (12 số)',
+  phone: 'Số điện thoại',
+  isHouseholder: 'Là chủ hộ (x nếu có)',
+  relation: 'Quan hệ với chủ hộ',
+  headCccd: 'Số CCCD chủ hộ (bắt buộc nếu không phải chủ hộ)',
+  group: 'Nhóm cư trú',
+  permanentAddress: 'Địa chỉ thường trú',
+  temporaryAddress: 'Địa chỉ tạm trú',
+  fatherName: 'Họ tên cha',
+  motherName: 'Họ tên mẹ',
+} as const;
+
+type ImportRow = {
+  name: string;
+  dob: string;
+  gender: string;
+  cccd: string;
+  phone: string;
+  isHouseholder: boolean;
+  relation: string;
+  headCccd: string;
+  group: string;
+  permanentAddress: string;
+  temporaryAddress: string;
+  fatherName: string;
+  motherName: string;
+  error?: string;
+};
+
+const DOB_RE = /^\d{2}\/\d{2}\/\d{4}$/;
+const IMPORT_CCCD_RE = /^\d{12}$/;
+const IMPORT_PHONE_RE = /^\d{10}$/;
+
+function validateImportRow(row: ImportRow): string | null {
+  if (!row.name.trim()) return 'Thiếu Họ và tên.';
+  if (!DOB_RE.test(row.dob.trim())) return 'Ngày sinh phải đúng định dạng dd/mm/yyyy.';
+  if (row.cccd.trim() && !IMPORT_CCCD_RE.test(row.cccd.trim())) return 'CCCD phải gồm đúng 12 chữ số.';
+  if (row.phone.trim() && !IMPORT_PHONE_RE.test(row.phone.trim())) return 'SĐT phải gồm đúng 10 chữ số.';
+  if (!row.isHouseholder) {
+    if (!row.relation.trim()) return 'Thiếu Quan hệ với chủ hộ.';
+    if (!row.headCccd.trim()) return 'Thiếu Số CCCD chủ hộ.';
+  }
+  return null;
+}
+
+function downloadImportTemplate() {
+  const headers = Object.values(EXCEL_HEADERS);
+  const sample = [
+    ['Nguyễn Văn A', '01/01/1980', 'Nam', '041080012345', '', 'x', '', '', 'Khác', 'Thôn Đoàn Kết', '', '', ''],
+    ['Nguyễn Thị B', '05/05/1985', 'Nữ', '', '', '', 'Vợ', '041080012345', 'Khác', 'Thôn Đoàn Kết', '', '', ''],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...sample]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cư dân');
+  XLSX.writeFile(wb, 'mau-nhap-cu-dan.xlsx');
+}
+
+function parseExcelFile(file: File): Promise<Record<string, unknown>[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { raw: false, defval: '' });
+        resolve(json);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function mapRawImportRow(raw: Record<string, unknown>): ImportRow {
+  const get = (key: keyof typeof EXCEL_HEADERS) => String(raw[EXCEL_HEADERS[key]] ?? '').trim();
+  const genderRaw = get('gender').toLowerCase();
+  const gender = genderRaw === 'nam' ? 'male' : genderRaw === 'nữ' || genderRaw === 'nu' ? 'female' : 'unknown';
+  const row: ImportRow = {
+    name: get('name'),
+    dob: get('dob'),
+    gender,
+    cccd: get('cccd').replace(/\D/g, ''),
+    phone: get('phone').replace(/\D/g, ''),
+    isHouseholder: !!get('isHouseholder'),
+    relation: get('relation'),
+    headCccd: get('headCccd').replace(/\D/g, ''),
+    group: get('group'),
+    permanentAddress: get('permanentAddress'),
+    temporaryAddress: get('temporaryAddress'),
+    fatherName: get('fatherName'),
+    motherName: get('motherName'),
+  };
+  return { ...row, error: validateImportRow(row) || undefined };
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -42,6 +145,7 @@ export function AdminAccountsTab({
   const [editingResident, setEditingResident] = useState<AdminAccountItem | null>(null);
   const [deletingResident, setDeletingResident] = useState<AdminAccountItem | null>(null);
   const [addingResident, setAddingResident] = useState(false);
+  const [importingExcel, setImportingExcel] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
 
@@ -125,6 +229,12 @@ export function AdminAccountsTab({
             className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all hover:bg-emerald-500"
           >
             <i className="fa-solid fa-user-plus" /> Thêm cư dân mới
+          </button>
+          <button
+            onClick={() => setImportingExcel(true)}
+            className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all hover:bg-amber-500"
+          >
+            <i className="fa-solid fa-file-excel" /> Nhập từ Excel
           </button>
           <button
             onClick={sync}
@@ -270,6 +380,17 @@ export function AdminAccountsTab({
           onClose={() => setAddingResident(false)}
           onSuccess={async (msg) => {
             setAddingResident(false);
+            await refresh();
+            showNotice('success', msg);
+          }}
+        />
+      )}
+
+      {importingExcel && (
+        <ImportResidentsModal
+          onClose={() => setImportingExcel(false)}
+          onSuccess={async (msg) => {
+            setImportingExcel(false);
             await refresh();
             showNotice('success', msg);
           }}
@@ -938,6 +1059,183 @@ function DeleteResidentModal({
             className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-lg hover:bg-red-500 disabled:opacity-50"
           >
             {submitting ? 'Đang xóa...' : 'Xác nhận xóa'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (msg: string) => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [rows, setRows] = useState<ImportRow[]>([]);
+  const [fileName, setFileName] = useState('');
+  const [parseError, setParseError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [result, setResult] = useState<{
+    created: number;
+    failed: number;
+    results: { row: number; name: string; status: string; reason?: string }[];
+  } | null>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    setParseError('');
+    setResult(null);
+    try {
+      const raw = await parseExcelFile(file);
+      if (raw.length === 0) {
+        setParseError('File không có dữ liệu (hoặc thiếu đúng dòng tiêu đề).');
+        setRows([]);
+        return;
+      }
+      setRows(raw.map(mapRawImportRow));
+    } catch {
+      setParseError('Không thể đọc file. Hãy dùng đúng file mẫu định dạng .xlsx.');
+      setRows([]);
+    }
+  }
+
+  const hasErrors = rows.some((r) => r.error);
+
+  async function submit() {
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      const res = await clientApi<{
+        created: number;
+        failed: number;
+        results: { row: number; name: string; status: string; reason?: string }[];
+      }>('admin/accounts/residents/bulk-import', {
+        method: 'POST',
+        body: {
+          rows: rows.map((r) => ({
+            name: r.name,
+            dob: r.dob,
+            gender: r.gender,
+            cccd: r.cccd,
+            phone: r.phone,
+            isHouseholder: r.isHouseholder,
+            relation: r.relation,
+            headCccd: r.headCccd,
+            group: r.group,
+            permanentAddress: r.permanentAddress,
+            temporaryAddress: r.temporaryAddress,
+            fatherName: r.fatherName,
+            motherName: r.motherName,
+          })),
+        },
+      });
+      setResult(res);
+      if (res.failed === 0) {
+        onSuccess(`Đã nhập thành công ${res.created} cư dân từ file Excel.`);
+      }
+    } catch (err) {
+      setSubmitError(err instanceof ClientApiError ? err.message : 'Không thể nhập dữ liệu.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-stone-950/80 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-stone-100 p-6">
+          <h3 className="font-serif text-base font-bold uppercase tracking-wider text-stone-900">Nhập cư dân từ Excel</h3>
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-stone-500 hover:border-red-300 hover:text-red-500">
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+        <div className="flex-1 space-y-4 overflow-y-auto p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={downloadImportTemplate}
+              className="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-bold uppercase tracking-wider text-stone-600 hover:bg-stone-100"
+            >
+              <i className="fa-solid fa-download" /> Tải file mẫu
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-primary-500"
+            >
+              <i className="fa-solid fa-upload" /> Chọn file Excel
+            </button>
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFile} />
+            {fileName && <span className="text-xs text-stone-500">{fileName}</span>}
+          </div>
+
+          <p className="text-[11px] text-stone-400">
+            Cột <b>Số CCCD chủ hộ</b> dùng để gắn thành viên vào đúng hộ — chủ hộ phải có CCCD, các thành viên khác điền đúng CCCD đó (không dùng họ tên vì có thể trùng).
+          </p>
+
+          {parseError && <p className="text-xs font-semibold text-red-600">{parseError}</p>}
+
+          {rows.length > 0 && (
+            <>
+              <div className="table-scroll-wrap rounded-xl border border-stone-200">
+                <div className="table-scroll max-h-80">
+                  <table className="w-full min-w-200 text-left text-[11px]">
+                    <thead className="sticky top-0 bg-stone-50">
+                      <tr className="border-b border-stone-200 text-stone-500">
+                        <th className="p-2 font-semibold">#</th>
+                        <th className="p-2 font-semibold">Họ tên</th>
+                        <th className="p-2 font-semibold">Ngày sinh</th>
+                        <th className="p-2 font-semibold">Chủ hộ?</th>
+                        <th className="p-2 font-semibold">CCCD chủ hộ</th>
+                        <th className="p-2 font-semibold">Trạng thái</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {rows.map((r, i) => (
+                        <tr key={i} className={r.error ? 'bg-red-50' : ''}>
+                          <td className="p-2 text-stone-400">{i + 1}</td>
+                          <td className="p-2 font-semibold text-stone-800">{r.name || <span className="text-stone-300">—</span>}</td>
+                          <td className="p-2 text-stone-600">{r.dob || <span className="text-stone-300">—</span>}</td>
+                          <td className="p-2 text-stone-600">{r.isHouseholder ? 'Có' : ''}</td>
+                          <td className="p-2 font-mono text-stone-600">{r.headCccd || <span className="text-stone-300">—</span>}</td>
+                          <td className="p-2">
+                            {r.error ? <span className="text-red-600">{r.error}</span> : <span className="text-emerald-600">Hợp lệ</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <p className="text-xs text-stone-500">
+                Tổng {rows.length} dòng — {rows.filter((r) => !r.error).length} hợp lệ, {rows.filter((r) => r.error).length} lỗi.
+                {hasErrors && ' Sửa lỗi trong file rồi chọn lại trước khi nhập.'}
+              </p>
+            </>
+          )}
+
+          {result && (
+            <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-4 text-xs">
+              <p className="font-semibold text-stone-700">
+                Kết quả: tạo mới {result.created} cư dân, {result.failed} dòng lỗi.
+              </p>
+              {result.results
+                .filter((r) => r.status === 'failed')
+                .map((r) => (
+                  <p key={r.row} className="text-red-600">
+                    Dòng {r.row} ({r.name}): {r.reason}
+                  </p>
+                ))}
+            </div>
+          )}
+
+          {submitError && <p className="text-xs font-semibold text-red-600">{submitError}</p>}
+        </div>
+        <div className="shrink-0 border-t border-stone-100 p-6">
+          <button
+            onClick={submit}
+            disabled={rows.length === 0 || hasErrors || submitting}
+            className="w-full rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all hover:from-primary-500 hover:to-primary-600 disabled:opacity-50"
+          >
+            {submitting ? 'Đang nhập...' : rows.length > 0 ? `Xác nhận nhập ${rows.length} cư dân` : 'Xác nhận nhập'}
           </button>
         </div>
       </div>
