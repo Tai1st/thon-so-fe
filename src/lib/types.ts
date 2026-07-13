@@ -254,6 +254,7 @@ export interface AdminPendingRequests {
 
 export interface AdminAccountItem {
   _id: string;
+  residentId?: string;
   username: string;
   name: string;
   role: string;
@@ -261,6 +262,23 @@ export interface AdminAccountItem {
   lastActive: string;
   status: 'active' | 'locked';
   assoc?: string;
+}
+
+export interface AdminResidentInfo {
+  _id: string;
+  name: string;
+  dob: string;
+  gender: string;
+  cccd: string;
+  phone: string;
+  relation: string;
+  isHouseholder: boolean;
+  familyId: string;
+  permanentAddress: string;
+  temporaryAddress: string;
+  group: string;
+  fatherName: string;
+  motherName: string;
 }
 
 export interface AdminAccountsResponse {

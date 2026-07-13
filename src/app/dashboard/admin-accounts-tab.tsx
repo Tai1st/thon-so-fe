@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { clientApi, ClientApiError } from '@/lib/client-api';
 import { buildResidentGroups } from '@/lib/types';
-import type { AdminAccountItem, AdminAccountsResponse } from '@/lib/types';
+import type { AdminAccountItem, AdminAccountsResponse, AdminResidentInfo } from '@/lib/types';
 import { TableActionsMenu } from './table-actions-menu';
 
 function isoToDmy(iso: string): string {
@@ -11,6 +11,12 @@ function isoToDmy(iso: string): string {
   if (parts.length !== 3) return '';
   const [y, m, d] = parts;
   return `${d}/${m}/${y}`;
+}
+function dmyToIso(dmy: string): string {
+  const parts = dmy.split('/');
+  if (parts.length !== 3) return '';
+  const [d, m, y] = parts;
+  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -33,6 +39,8 @@ export function AdminAccountsTab({
 }) {
   const [notice, setNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [editing, setEditing] = useState<AdminAccountItem | null>(null);
+  const [editingResident, setEditingResident] = useState<AdminAccountItem | null>(null);
+  const [deletingResident, setDeletingResident] = useState<AdminAccountItem | null>(null);
   const [addingResident, setAddingResident] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -182,6 +190,22 @@ export function AdminAccountsTab({
                       >
                         Reset Pass
                       </button>
+                      {acc.residentId && (
+                        <>
+                          <button
+                            onClick={() => setEditingResident(acc)}
+                            className="rounded border border-stone-200 bg-stone-50 px-2 py-1 text-[10px] text-stone-600 hover:bg-stone-100"
+                          >
+                            <i className="fa-solid fa-id-card mr-1" /> Sửa cư dân
+                          </button>
+                          <button
+                            onClick={() => setDeletingResident(acc)}
+                            className="rounded bg-red-50 px-2 py-1 text-[10px] text-red-600 hover:bg-red-600 hover:text-white"
+                          >
+                            Xóa cư dân
+                          </button>
+                        </>
+                      )}
                       {acc.role !== 'admin' &&
                         (acc.status === 'active' ? (
                           <button
@@ -205,6 +229,12 @@ export function AdminAccountsTab({
                       actions={[
                         { label: 'Sửa', icon: 'fa-pen-to-square', onClick: () => setEditing(acc) },
                         { label: 'Reset Pass', icon: 'fa-key', onClick: () => resetPassword(acc), disabled: busyId === acc._id },
+                        ...(acc.residentId
+                          ? [
+                              { label: 'Sửa cư dân', icon: 'fa-id-card', onClick: () => setEditingResident(acc) },
+                              { label: 'Xóa cư dân', icon: 'fa-trash', onClick: () => setDeletingResident(acc), danger: true },
+                            ]
+                          : []),
                         ...(acc.role !== 'admin'
                           ? [
                               acc.status === 'active'
@@ -245,6 +275,32 @@ export function AdminAccountsTab({
           }}
         />
       )}
+
+      {editingResident && editingResident.residentId && (
+        <EditResidentInfoModal
+          residentId={editingResident.residentId}
+          groups={buildResidentGroups(oldVillages)}
+          onClose={() => setEditingResident(null)}
+          onSuccess={async (msg) => {
+            setEditingResident(null);
+            await refresh();
+            showNotice('success', msg);
+          }}
+        />
+      )}
+
+      {deletingResident && deletingResident.residentId && (
+        <DeleteResidentModal
+          account={deletingResident}
+          residentId={deletingResident.residentId}
+          onClose={() => setDeletingResident(null)}
+          onSuccess={async (msg) => {
+            setDeletingResident(null);
+            await refresh();
+            showNotice('success', msg);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -279,7 +335,7 @@ function AddResidentModal({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (!form.name.trim() || !form.dobIso || !form.relation.trim()) {
+    if (!form.name.trim() || !form.dobIso || (!form.isHouseholder && !form.relation.trim())) {
       setError('Vui lòng nhập đầy đủ Họ tên, Ngày sinh và Quan hệ với chủ hộ.');
       return;
     }
@@ -351,12 +407,15 @@ function AddResidentModal({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Quan hệ với chủ hộ *</label>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">
+                Quan hệ với chủ hộ{form.isHouseholder ? '' : ' *'}
+              </label>
               <input
-                value={form.relation}
+                value={form.isHouseholder ? 'Chủ hộ' : form.relation}
+                disabled={form.isHouseholder}
                 onChange={(e) => setForm({ ...form, relation: e.target.value })}
-                placeholder="VD: Chủ hộ, Con, Vợ/Chồng..."
-                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
+                placeholder="VD: Con, Vợ/Chồng..."
+                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500 disabled:text-stone-400"
               />
             </div>
             <div className="space-y-1.5">
@@ -584,6 +643,303 @@ function EditAccountModal({
             Lưu thay đổi
           </button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function EditResidentInfoModal({
+  residentId,
+  groups,
+  onClose,
+  onSuccess,
+}: {
+  residentId: string;
+  groups: string[];
+  onClose: () => void;
+  onSuccess: (msg: string) => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({
+    name: '',
+    dobIso: '',
+    gender: 'unknown',
+    cccd: '',
+    phone: '',
+    relation: '',
+    isHouseholder: false,
+    permanentAddress: '',
+    temporaryAddress: '',
+    group: groups[0],
+    fatherName: '',
+    motherName: '',
+  });
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    clientApi<AdminResidentInfo>(`admin/accounts/residents/${residentId}`)
+      .then((r) =>
+        setForm({
+          name: r.name,
+          dobIso: dmyToIso(r.dob),
+          gender: r.gender,
+          cccd: r.cccd,
+          phone: r.phone,
+          relation: r.relation,
+          isHouseholder: r.isHouseholder,
+          permanentAddress: r.permanentAddress,
+          temporaryAddress: r.temporaryAddress,
+          group: r.group || groups[0],
+          fatherName: r.fatherName,
+          motherName: r.motherName,
+        }),
+      )
+      .catch((err) => setError(err instanceof ClientApiError ? err.message : 'Không thể tải thông tin cư dân.'))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [residentId]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!form.name.trim() || !form.dobIso || (!form.isHouseholder && !form.relation.trim())) {
+      setError('Vui lòng nhập đầy đủ Họ tên, Ngày sinh và Quan hệ với chủ hộ.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await clientApi(`admin/accounts/residents/${residentId}`, {
+        method: 'PATCH',
+        body: {
+          name: form.name.trim(),
+          dob: isoToDmy(form.dobIso),
+          gender: form.gender,
+          cccd: form.cccd.trim(),
+          phone: form.phone.trim(),
+          relation: form.relation.trim(),
+          isHouseholder: form.isHouseholder,
+          permanentAddress: form.permanentAddress.trim(),
+          temporaryAddress: form.temporaryAddress.trim(),
+          group: form.group,
+          fatherName: form.fatherName.trim(),
+          motherName: form.motherName.trim(),
+        },
+      });
+      onSuccess(`Đã cập nhật thông tin cư dân "${form.name.trim()}".`);
+    } catch (err) {
+      setError(err instanceof ClientApiError ? err.message : 'Không thể lưu thay đổi.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-stone-950/80 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-stone-100 p-6">
+          <h3 className="font-serif text-base font-bold uppercase tracking-wider text-stone-900">Sửa thông tin cư dân</h3>
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-stone-500 hover:border-red-300 hover:text-red-500">
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+        {loading ? (
+          <p className="p-6 text-xs text-stone-400">Đang tải...</p>
+        ) : (
+          <form onSubmit={submit} className="flex-1 space-y-3 overflow-y-auto p-6">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Họ và tên *</label>
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Ngày sinh *</label>
+                <input
+                  type="date"
+                  value={form.dobIso}
+                  onChange={(e) => setForm({ ...form, dobIso: e.target.value })}
+                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">
+                  Quan hệ với chủ hộ{form.isHouseholder ? '' : ' *'}
+                </label>
+                <input
+                  value={form.isHouseholder ? 'Chủ hộ' : form.relation}
+                  disabled={form.isHouseholder}
+                  onChange={(e) => setForm({ ...form, relation: e.target.value })}
+                  placeholder="VD: Con, Vợ/Chồng..."
+                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500 disabled:text-stone-400"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Giới tính</label>
+                <div className="flex h-[34px] items-center gap-4 text-xs text-stone-700">
+                  <label className="flex items-center gap-1.5">
+                    <input type="radio" checked={form.gender === 'male'} onChange={() => setForm({ ...form, gender: 'male' })} /> Nam
+                  </label>
+                  <label className="flex items-center gap-1.5">
+                    <input type="radio" checked={form.gender === 'female'} onChange={() => setForm({ ...form, gender: 'female' })} /> Nữ
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Căn Cước (CCCD)</label>
+              <input
+                value={form.cccd}
+                onChange={(e) => setForm({ ...form, cccd: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                placeholder="12 số — để trống nếu chưa có"
+                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Số điện thoại</label>
+              <input
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Họ tên cha</label>
+                <input
+                  value={form.fatherName}
+                  onChange={(e) => setForm({ ...form, fatherName: e.target.value })}
+                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Họ tên mẹ</label>
+                <input
+                  value={form.motherName}
+                  onChange={(e) => setForm({ ...form, motherName: e.target.value })}
+                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
+                />
+              </div>
+            </div>
+
+            <SelectField label="Nhóm cư trú" value={form.group} onChange={(v) => setForm({ ...form, group: v })} options={groups} />
+
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Địa chỉ thường trú</label>
+              <input
+                value={form.permanentAddress}
+                onChange={(e) => setForm({ ...form, permanentAddress: e.target.value })}
+                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Địa chỉ tạm trú</label>
+              <input
+                value={form.temporaryAddress}
+                onChange={(e) => setForm({ ...form, temporaryAddress: e.target.value })}
+                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
+              />
+            </div>
+
+            {error && <p className="text-[11px] font-semibold text-red-600">{error}</p>}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all hover:from-primary-500 hover:to-primary-600 disabled:opacity-50"
+            >
+              {submitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
+      >
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function DeleteResidentModal({
+  account,
+  residentId,
+  onClose,
+  onSuccess,
+}: {
+  account: AdminAccountItem;
+  residentId: string;
+  onClose: () => void;
+  onSuccess: (msg: string) => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  async function confirm() {
+    setSubmitting(true);
+    setError('');
+    try {
+      await clientApi(`admin/accounts/residents/${residentId}`, { method: 'DELETE' });
+      onSuccess(`Đã xóa cư dân "${account.name}" khỏi hệ thống.`);
+    } catch (err) {
+      setError(err instanceof ClientApiError ? err.message : 'Không thể xóa cư dân.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-stone-950/80 p-4">
+      <div className="w-full max-w-sm space-y-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-2xl">
+        <h3 className="font-serif text-base font-bold uppercase tracking-wider text-stone-900">Xóa cư dân</h3>
+        <p className="text-xs text-stone-600">
+          Bạn chắc chắn muốn xóa nhân khẩu <b>{account.name}</b> khỏi hệ thống? Tài khoản đăng nhập liên quan (nếu có) cũng sẽ bị xóa. Hành động này không thể hoàn tác.
+        </p>
+        {error && <p className="text-[11px] font-semibold text-red-600">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100">
+            Hủy
+          </button>
+          <button
+            onClick={confirm}
+            disabled={submitting}
+            className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-lg hover:bg-red-500 disabled:opacity-50"
+          >
+            {submitting ? 'Đang xóa...' : 'Xác nhận xóa'}
+          </button>
+        </div>
       </div>
     </div>
   );
