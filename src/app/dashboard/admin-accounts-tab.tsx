@@ -33,6 +33,7 @@ const EXCEL_HEADER_MAP: Record<string, keyof RawImportRow> = {
   'THƯỜNG TRÚ': 'permanentAddress',
   'HỌ VÀ TÊN (CHA)': 'fatherName',
   'HỌ VÀ TÊN MẸ': 'motherName',
+  'SỐ ĐIỆN THOẠI': 'phone',
 };
 const REQUIRED_IMPORT_FIELDS: (keyof RawImportRow)[] = ['name', 'dob', 'gender', 'cccd', 'groupKey'];
 
@@ -46,6 +47,7 @@ type RawImportRow = {
   permanentAddress: string;
   fatherName: string;
   motherName: string;
+  phone: string;
 };
 
 type ImportRow = {
@@ -58,16 +60,19 @@ type ImportRow = {
   permanentAddress: string;
   fatherName: string;
   motherName: string;
+  phone: string;
   error?: string;
 };
 
 const DOB_RE = /^\d{2}\/\d{2}\/\d{4}$/;
 const IMPORT_CCCD_RE = /^\d{12}$/;
+const IMPORT_PHONE_RE = /^\d{10}$/;
 
 function validateImportRow(row: ImportRow): string | null {
   if (!row.name.trim()) return 'Thiếu Họ và tên.';
   if (!DOB_RE.test(row.dob.trim())) return 'Ngày sinh phải đúng định dạng dd/mm/yyyy.';
   if (row.cccd.trim() && !IMPORT_CCCD_RE.test(row.cccd.trim())) return 'Số Căn Cước phải gồm đúng 12 chữ số.';
+  if (row.phone.trim() && !IMPORT_PHONE_RE.test(row.phone.trim())) return 'Số điện thoại phải gồm đúng 10 chữ số.';
   if (!row.groupKey.trim()) return 'Thiếu Số Hộ Tịch để xác định thuộc hộ nào.';
   return null;
 }
@@ -75,8 +80,8 @@ function validateImportRow(row: ImportRow): string | null {
 function downloadImportTemplate() {
   const headers = Object.keys(EXCEL_HEADER_MAP);
   const sample = [
-    ['Nguyễn Văn A', '01/01/1980', 'Nam', '041080012345', '', 'HT-001', 'Thôn Đoàn Kết, Xã Dliê Ya, Huyện Krông Năng', '', ''],
-    ['Nguyễn Thị B', '05/05/1985', 'Nữ', '', 'Nguyễn Văn A', 'HT-001', 'Thôn Đoàn Kết, Xã Dliê Ya, Huyện Krông Năng', '', ''],
+    ['Nguyễn Văn A', '01/01/1980', 'Nam', '041080012345', '', 'HT-001', 'Thôn Đoàn Kết, Xã Dliê Ya, Huyện Krông Năng', '', '', '0912345678'],
+    ['Nguyễn Thị B', '05/05/1985', 'Nữ', '', 'Nguyễn Văn A', 'HT-001', 'Thôn Đoàn Kết, Xã Dliê Ya, Huyện Krông Năng', '', '', ''],
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers, ...sample]);
   const wb = XLSX.utils.book_new();
@@ -145,6 +150,7 @@ function mapRawImportRow(cells: unknown[], index: Partial<Record<keyof RawImport
     permanentAddress: get('permanentAddress'),
     fatherName: get('fatherName'),
     motherName: get('motherName'),
+    phone: get('phone').replace(/\D/g, ''),
   };
   return { ...row, error: validateImportRow(row) || undefined };
 }
@@ -1128,6 +1134,7 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
             permanentAddress: r.permanentAddress,
             fatherName: r.fatherName,
             motherName: r.motherName,
+            phone: r.phone,
           })),
         },
       });
@@ -1190,6 +1197,7 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
                         <th className="p-2 font-semibold">Ngày sinh</th>
                         <th className="p-2 font-semibold">Chủ hộ?</th>
                         <th className="p-2 font-semibold">Số Hộ Tịch</th>
+                        <th className="p-2 font-semibold">SĐT</th>
                         <th className="p-2 font-semibold">Trạng thái</th>
                       </tr>
                     </thead>
@@ -1201,6 +1209,7 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
                           <td className="p-2 text-stone-600">{r.dob || <span className="text-stone-300">—</span>}</td>
                           <td className="p-2 text-stone-600">{r.isHouseholder ? 'Có' : ''}</td>
                           <td className="p-2 font-mono text-stone-600">{r.groupKey || <span className="text-stone-300">—</span>}</td>
+                          <td className="p-2 font-mono text-stone-600">{r.phone || <span className="text-stone-300">—</span>}</td>
                           <td className="p-2">
                             {r.error ? <span className="text-red-600">{r.error}</span> : <span className="text-emerald-600">Hợp lệ</span>}
                           </td>
