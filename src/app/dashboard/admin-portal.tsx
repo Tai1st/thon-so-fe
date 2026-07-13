@@ -14,12 +14,14 @@ import { AdminAccountsTab } from './admin-accounts-tab';
 import { AdminPermissionsTab } from './admin-permissions-tab';
 import { AdminHomeContentTab } from './admin-home-content-tab';
 import { AdminLogsTab } from './admin-logs-tab';
+import { AccountProfileModal } from './account-profile-modal';
 
 interface Me {
   id: string;
   name: string;
   role: string;
   position: string;
+  avatarUrl?: string;
 }
 
 const TABS = [
@@ -53,6 +55,7 @@ export function AdminPortal({
   const [permissionsState, setPermissionsState] = useState(permissions);
   const [homeContentState, setHomeContentState] = useState(homeContent);
   const [logsState, setLogsState] = useState(logs);
+  const [showProfile, setShowProfile] = useState(false);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -96,15 +99,23 @@ export function AdminPortal({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-primary-600 to-amber-500 font-serif text-xs font-black text-white">
-              {initials || 'AD'}
-            </div>
+          <button
+            onClick={() => setShowProfile(true)}
+            className="flex items-center gap-2.5 rounded-xl p-1 transition-colors hover:bg-stone-50"
+          >
+            {me.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={me.avatarUrl} alt={me.name} className="h-9 w-9 rounded-xl object-cover ring-2 ring-primary-100" />
+            ) : (
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-primary-600 to-amber-500 font-serif text-xs font-black text-white">
+                {initials || 'AD'}
+              </div>
+            )}
             <div className="hidden text-left sm:block">
               <h4 className="text-xs font-bold leading-tight text-stone-900">{me.name}</h4>
               <span className="block text-[9px] text-stone-500">{me.position || 'Admin'}</span>
             </div>
-          </div>
+          </button>
           <button
             onClick={handleLogout}
             className="flex items-center gap-1.5 rounded-xl bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-600 transition-all hover:bg-red-600 hover:text-white sm:px-3.5"
@@ -193,6 +204,18 @@ export function AdminPortal({
           {activeTab === 'nhat-ky' && <AdminLogsTab logs={logsState} onLogsChange={setLogsState} />}
         </div>
       </div>
+
+      {showProfile && (
+        <AccountProfileModal
+          name={me.name}
+          avatarUrl={me.avatarUrl || ''}
+          onClose={() => setShowProfile(false)}
+          onSuccess={() => {
+            setShowProfile(false);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

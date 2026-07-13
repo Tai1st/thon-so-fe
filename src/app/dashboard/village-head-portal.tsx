@@ -21,12 +21,14 @@ import { FamilyTab } from './family-tab';
 import { ContributionsTab } from './contributions-tab';
 import { IncidentTab } from './incident-tab';
 import { ResidenceTab } from './residence-tab';
+import { AccountProfileModal } from './account-profile-modal';
 
 interface Me {
   id: string;
   name: string;
   role: string;
   position: string;
+  avatarUrl?: string;
 }
 
 interface OwnHousehold {
@@ -82,6 +84,7 @@ export function VillageHeadPortal({
   const [requestsState, setRequestsState] = useState(ownHousehold?.requests);
   const [incidentReportsState, setIncidentReportsState] = useState(ownHousehold?.incidentReports);
   const [residenceRegistrationsState, setResidenceRegistrationsState] = useState(ownHousehold?.residenceRegistrations);
+  const [showProfile, setShowProfile] = useState(false);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -119,15 +122,23 @@ export function VillageHeadPortal({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-primary-600 to-amber-500 font-serif text-xs font-black text-white">
-              {initials || 'TT'}
-            </div>
+          <button
+            onClick={() => setShowProfile(true)}
+            className="flex items-center gap-2.5 rounded-xl p-1 transition-colors hover:bg-stone-50"
+          >
+            {me.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={me.avatarUrl} alt={me.name} className="h-9 w-9 rounded-xl object-cover ring-2 ring-primary-100" />
+            ) : (
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-primary-600 to-amber-500 font-serif text-xs font-black text-white">
+                {initials || 'TT'}
+              </div>
+            )}
             <div className="hidden text-left sm:block">
               <h4 className="text-xs font-bold leading-tight text-stone-900">{me.name}</h4>
               <span className="block text-[9px] text-stone-500">{me.position || 'Trưởng thôn'}</span>
             </div>
-          </div>
+          </button>
           <button
             onClick={handleLogout}
             className="flex items-center gap-1.5 rounded-xl bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-600 transition-all hover:bg-red-600 hover:text-white sm:px-3.5"
@@ -275,6 +286,18 @@ export function VillageHeadPortal({
           )}
         </div>
       </div>
+
+      {showProfile && (
+        <AccountProfileModal
+          name={me.name}
+          avatarUrl={me.avatarUrl || ''}
+          onClose={() => setShowProfile(false)}
+          onSuccess={() => {
+            setShowProfile(false);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -36,6 +36,7 @@ interface Me {
   role: string;
   position: string;
   assoc?: string;
+  avatarUrl?: string;
 }
 
 // Dữ liệu "hộ gia đình của chính người đăng nhập" — dùng cho Cư dân, và
