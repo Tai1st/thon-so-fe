@@ -20,34 +20,42 @@ function dmyToIso(dmy: string): string {
   return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 }
 
-const EXCEL_HEADERS = {
-  name: 'Họ và tên',
-  dob: 'Ngày sinh (dd/mm/yyyy)',
-  gender: 'Giới tính (Nam/Nữ)',
-  cccd: 'CCCD (12 số)',
-  phone: 'Số điện thoại',
-  isHouseholder: 'Là chủ hộ (x nếu có)',
-  relation: 'Quan hệ với chủ hộ',
-  headCccd: 'Số CCCD chủ hộ (bắt buộc nếu không phải chủ hộ)',
-  group: 'Nhóm cư trú',
-  permanentAddress: 'Địa chỉ thường trú',
-  temporaryAddress: 'Địa chỉ tạm trú',
-  fatherName: 'Họ tên cha',
-  motherName: 'Họ tên mẹ',
-} as const;
+// Khớp đúng cột trong file mẫu sẵn có của thôn (mục "Nhập từ Excel") — so
+// khớp không phân biệt hoa/thường + khoảng trắng thừa, để dùng được ngay
+// file thật đang có mà không cần chỉnh sửa lại tiêu đề cột.
+const EXCEL_HEADER_MAP: Record<string, keyof RawImportRow> = {
+  'HỌ VÀ TÊN': 'name',
+  'NGÀY SINH': 'dob',
+  'GIỚI TÍNH': 'gender',
+  'SỐ CĂN CƯỚC': 'cccd',
+  'HỌ VÀ TÊN (CHỦ HỘ)': 'headRef',
+  'SỐ HỘ TỊCH': 'groupKey',
+  'THƯỜNG TRÚ': 'permanentAddress',
+  'HỌ VÀ TÊN (CHA)': 'fatherName',
+  'HỌ VÀ TÊN MẸ': 'motherName',
+};
+const REQUIRED_IMPORT_FIELDS: (keyof RawImportRow)[] = ['name', 'dob', 'gender', 'cccd', 'groupKey'];
+
+type RawImportRow = {
+  name: string;
+  dob: string;
+  gender: string;
+  cccd: string;
+  headRef: string;
+  groupKey: string;
+  permanentAddress: string;
+  fatherName: string;
+  motherName: string;
+};
 
 type ImportRow = {
   name: string;
   dob: string;
   gender: string;
   cccd: string;
-  phone: string;
   isHouseholder: boolean;
-  relation: string;
-  headCccd: string;
-  group: string;
+  groupKey: string;
   permanentAddress: string;
-  temporaryAddress: string;
   fatherName: string;
   motherName: string;
   error?: string;
@@ -55,25 +63,20 @@ type ImportRow = {
 
 const DOB_RE = /^\d{2}\/\d{2}\/\d{4}$/;
 const IMPORT_CCCD_RE = /^\d{12}$/;
-const IMPORT_PHONE_RE = /^\d{10}$/;
 
 function validateImportRow(row: ImportRow): string | null {
   if (!row.name.trim()) return 'Thiếu Họ và tên.';
   if (!DOB_RE.test(row.dob.trim())) return 'Ngày sinh phải đúng định dạng dd/mm/yyyy.';
-  if (row.cccd.trim() && !IMPORT_CCCD_RE.test(row.cccd.trim())) return 'CCCD phải gồm đúng 12 chữ số.';
-  if (row.phone.trim() && !IMPORT_PHONE_RE.test(row.phone.trim())) return 'SĐT phải gồm đúng 10 chữ số.';
-  if (!row.isHouseholder) {
-    if (!row.relation.trim()) return 'Thiếu Quan hệ với chủ hộ.';
-    if (!row.headCccd.trim()) return 'Thiếu Số CCCD chủ hộ.';
-  }
+  if (row.cccd.trim() && !IMPORT_CCCD_RE.test(row.cccd.trim())) return 'Số Căn Cước phải gồm đúng 12 chữ số.';
+  if (!row.groupKey.trim()) return 'Thiếu Số Hộ Tịch để xác định thuộc hộ nào.';
   return null;
 }
 
 function downloadImportTemplate() {
-  const headers = Object.values(EXCEL_HEADERS);
+  const headers = Object.keys(EXCEL_HEADER_MAP);
   const sample = [
-    ['Nguyễn Văn A', '01/01/1980', 'Nam', '041080012345', '', 'x', '', '', 'Khác', 'Thôn Đoàn Kết', '', '', ''],
-    ['Nguyễn Thị B', '05/05/1985', 'Nữ', '', '', '', 'Vợ', '041080012345', 'Khác', 'Thôn Đoàn Kết', '', '', ''],
+    ['Nguyễn Văn A', '01/01/1980', 'Nam', '041080012345', '', 'HT-001', 'Thôn Đoàn Kết, Xã Dliê Ya, Huyện Krông Năng', '', ''],
+    ['Nguyễn Thị B', '05/05/1985', 'Nữ', '', 'Nguyễn Văn A', 'HT-001', 'Thôn Đoàn Kết, Xã Dliê Ya, Huyện Krông Năng', '', ''],
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers, ...sample]);
   const wb = XLSX.utils.book_new();
@@ -81,7 +84,14 @@ function downloadImportTemplate() {
   XLSX.writeFile(wb, 'mau-nhap-cu-dan.xlsx');
 }
 
-function parseExcelFile(file: File): Promise<Record<string, unknown>[]> {
+function normalizeHeader(h: string): string {
+  return String(h ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+}
+
+function parseExcelFile(file: File): Promise<unknown[][]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -89,8 +99,8 @@ function parseExcelFile(file: File): Promise<Record<string, unknown>[]> {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { raw: false, defval: '' });
-        resolve(json);
+        const table = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: false, defval: '' });
+        resolve(table);
       } catch (err) {
         reject(err);
       }
@@ -100,22 +110,39 @@ function parseExcelFile(file: File): Promise<Record<string, unknown>[]> {
   });
 }
 
-function mapRawImportRow(raw: Record<string, unknown>): ImportRow {
-  const get = (key: keyof typeof EXCEL_HEADERS) => String(raw[EXCEL_HEADERS[key]] ?? '').trim();
+// Trả về danh sách field bắt buộc còn thiếu trong file (nếu có) — dùng để
+// báo lỗi rõ ràng thay vì âm thầm bỏ qua cột không khớp tên.
+function buildColumnIndex(headerRow: unknown[]): { index: Partial<Record<keyof RawImportRow, number>>; missing: string[] } {
+  const index: Partial<Record<keyof RawImportRow, number>> = {};
+  headerRow.forEach((h, i) => {
+    const field = EXCEL_HEADER_MAP[normalizeHeader(String(h ?? ''))];
+    if (field) index[field] = i;
+  });
+  const missing = REQUIRED_IMPORT_FIELDS.filter((f) => index[f] === undefined).map(
+    (f) => Object.keys(EXCEL_HEADER_MAP).find((k) => EXCEL_HEADER_MAP[k] === f) || f,
+  );
+  return { index, missing };
+}
+
+function mapRawImportRow(cells: unknown[], index: Partial<Record<keyof RawImportRow, number>>): ImportRow {
+  const get = (key: keyof RawImportRow) => {
+    const i = index[key];
+    return i === undefined ? '' : String(cells[i] ?? '').trim();
+  };
   const genderRaw = get('gender').toLowerCase();
   const gender = genderRaw === 'nam' ? 'male' : genderRaw === 'nữ' || genderRaw === 'nu' ? 'female' : 'unknown';
+  // Cột "Họ và tên (chủ hộ)" để trống -> chính dòng này là chủ hộ; có giá
+  // trị -> là thành viên (giá trị chỉ để tham khảo, không dùng để nhóm hộ
+  // vì họ tên có thể trùng — nhóm hộ dùng Số Hộ Tịch).
+  const isHouseholder = !get('headRef');
   const row: ImportRow = {
     name: get('name'),
     dob: get('dob'),
     gender,
     cccd: get('cccd').replace(/\D/g, ''),
-    phone: get('phone').replace(/\D/g, ''),
-    isHouseholder: !!get('isHouseholder'),
-    relation: get('relation'),
-    headCccd: get('headCccd').replace(/\D/g, ''),
-    group: get('group'),
+    isHouseholder,
+    groupKey: get('groupKey'),
     permanentAddress: get('permanentAddress'),
-    temporaryAddress: get('temporaryAddress'),
     fatherName: get('fatherName'),
     motherName: get('motherName'),
   };
@@ -147,7 +174,6 @@ export function AdminAccountsTab({
   const [addingResident, setAddingResident] = useState(false);
   const [importingExcel, setImportingExcel] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [syncing, setSyncing] = useState(false);
 
   function showNotice(type: 'success' | 'error' | 'info', text: string) {
     setNotice({ type, text });
@@ -181,24 +207,6 @@ export function AdminAccountsTab({
       showNotice('error', err instanceof ClientApiError ? err.message : 'Không thể đổi trạng thái.');
     } finally {
       setBusyId(null);
-    }
-  }
-
-  async function sync() {
-    setSyncing(true);
-    try {
-      const res = await clientApi<{ created: number; skipped: number }>('admin/accounts/sync', { method: 'POST' });
-      await refresh();
-      showNotice(
-        res.created > 0 ? 'success' : 'info',
-        res.created > 0
-          ? `Đã tạo ${res.created} tài khoản mới cho cư dân chưa có tài khoản.${res.skipped > 0 ? ` Bỏ qua ${res.skipped} cư dân chưa có Căn Cước hợp lệ.` : ''}`
-          : `Mọi cư dân đã có tài khoản.${res.skipped > 0 ? ` Còn ${res.skipped} cư dân chưa có Căn Cước hợp lệ.` : ''}`,
-      );
-    } catch (err) {
-      showNotice('error', err instanceof ClientApiError ? err.message : 'Không thể đồng bộ.');
-    } finally {
-      setSyncing(false);
     }
   }
 
@@ -236,19 +244,8 @@ export function AdminAccountsTab({
           >
             <i className="fa-solid fa-file-excel" /> Nhập từ Excel
           </button>
-          <button
-            onClick={sync}
-            disabled={syncing}
-            className="flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all hover:bg-primary-500 disabled:opacity-50"
-          >
-            <i className="fa-solid fa-arrows-rotate" /> Đồng bộ tài khoản toàn bộ cư dân
-          </button>
         </div>
       </div>
-      <p className="-mt-2 text-[11px] text-stone-400">
-        {accountsRes.unaccountedCount} / {accountsRes.residentCount} cư dân chưa có tài khoản đăng nhập
-        {accountsRes.unaccountedCount > 0 ? ' (thiếu Căn Cước hợp lệ — bấm "Đồng bộ" sau khi cập nhật)' : ''}.
-      </p>
 
       <div className="table-scroll-wrap rounded-xl border border-stone-200 bg-stone-50 text-left">
         <div className="table-scroll">
@@ -1075,6 +1072,7 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
   const [submitError, setSubmitError] = useState('');
   const [result, setResult] = useState<{
     created: number;
+    skipped: number;
     failed: number;
     results: { row: number; name: string; status: string; reason?: string }[];
   } | null>(null);
@@ -1086,13 +1084,20 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
     setParseError('');
     setResult(null);
     try {
-      const raw = await parseExcelFile(file);
-      if (raw.length === 0) {
+      const table = await parseExcelFile(file);
+      if (table.length < 2) {
         setParseError('File không có dữ liệu (hoặc thiếu đúng dòng tiêu đề).');
         setRows([]);
         return;
       }
-      setRows(raw.map(mapRawImportRow));
+      const { index, missing } = buildColumnIndex(table[0]);
+      if (missing.length > 0) {
+        setParseError(`File thiếu cột bắt buộc: ${missing.join(', ')}. Kiểm tra lại đúng tên cột ở dòng tiêu đề.`);
+        setRows([]);
+        return;
+      }
+      const dataRows = table.slice(1).filter((r) => r.some((c) => String(c ?? '').trim() !== ''));
+      setRows(dataRows.map((r) => mapRawImportRow(r, index)));
     } catch {
       setParseError('Không thể đọc file. Hãy dùng đúng file mẫu định dạng .xlsx.');
       setRows([]);
@@ -1107,6 +1112,7 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
     try {
       const res = await clientApi<{
         created: number;
+        skipped: number;
         failed: number;
         results: { row: number; name: string; status: string; reason?: string }[];
       }>('admin/accounts/residents/bulk-import', {
@@ -1117,13 +1123,9 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
             dob: r.dob,
             gender: r.gender,
             cccd: r.cccd,
-            phone: r.phone,
             isHouseholder: r.isHouseholder,
-            relation: r.relation,
-            headCccd: r.headCccd,
-            group: r.group,
+            groupKey: r.groupKey,
             permanentAddress: r.permanentAddress,
-            temporaryAddress: r.temporaryAddress,
             fatherName: r.fatherName,
             motherName: r.motherName,
           })),
@@ -1131,7 +1133,9 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
       });
       setResult(res);
       if (res.failed === 0) {
-        onSuccess(`Đã nhập thành công ${res.created} cư dân từ file Excel.`);
+        onSuccess(
+          `Đã nhập thành công ${res.created} cư dân từ file Excel.${res.skipped > 0 ? ` Bỏ qua ${res.skipped} dòng đã có CCCD trùng.` : ''}`,
+        );
       }
     } catch (err) {
       setSubmitError(err instanceof ClientApiError ? err.message : 'Không thể nhập dữ liệu.');
@@ -1168,7 +1172,8 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
           </div>
 
           <p className="text-[11px] text-stone-400">
-            Cột <b>Số CCCD chủ hộ</b> dùng để gắn thành viên vào đúng hộ — chủ hộ phải có CCCD, các thành viên khác điền đúng CCCD đó (không dùng họ tên vì có thể trùng).
+            Dùng đúng file mẫu đang có của thôn: cột <b>Số Hộ Tịch</b> dùng để gộp các dòng cùng 1 hộ (không lưu lại giá trị này, hệ thống tự sinh mã hộ riêng).
+            Cột <b>Họ và tên (chủ hộ)</b> để trống ở dòng chính chủ hộ; các thành viên khác điền tên chủ hộ vào đó (chỉ để tham khảo).
           </p>
 
           {parseError && <p className="text-xs font-semibold text-red-600">{parseError}</p>}
@@ -1184,7 +1189,7 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
                         <th className="p-2 font-semibold">Họ tên</th>
                         <th className="p-2 font-semibold">Ngày sinh</th>
                         <th className="p-2 font-semibold">Chủ hộ?</th>
-                        <th className="p-2 font-semibold">CCCD chủ hộ</th>
+                        <th className="p-2 font-semibold">Số Hộ Tịch</th>
                         <th className="p-2 font-semibold">Trạng thái</th>
                       </tr>
                     </thead>
@@ -1195,7 +1200,7 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
                           <td className="p-2 font-semibold text-stone-800">{r.name || <span className="text-stone-300">—</span>}</td>
                           <td className="p-2 text-stone-600">{r.dob || <span className="text-stone-300">—</span>}</td>
                           <td className="p-2 text-stone-600">{r.isHouseholder ? 'Có' : ''}</td>
-                          <td className="p-2 font-mono text-stone-600">{r.headCccd || <span className="text-stone-300">—</span>}</td>
+                          <td className="p-2 font-mono text-stone-600">{r.groupKey || <span className="text-stone-300">—</span>}</td>
                           <td className="p-2">
                             {r.error ? <span className="text-red-600">{r.error}</span> : <span className="text-emerald-600">Hợp lệ</span>}
                           </td>
@@ -1215,8 +1220,15 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
           {result && (
             <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-4 text-xs">
               <p className="font-semibold text-stone-700">
-                Kết quả: tạo mới {result.created} cư dân, {result.failed} dòng lỗi.
+                Kết quả: tạo mới {result.created} cư dân, bỏ qua {result.skipped} (CCCD đã tồn tại), {result.failed} dòng lỗi.
               </p>
+              {result.results
+                .filter((r) => r.status === 'skipped')
+                .map((r) => (
+                  <p key={r.row} className="text-amber-600">
+                    Dòng {r.row} ({r.name}): {r.reason}
+                  </p>
+                ))}
               {result.results
                 .filter((r) => r.status === 'failed')
                 .map((r) => (
