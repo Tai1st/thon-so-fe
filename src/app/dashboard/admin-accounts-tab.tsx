@@ -136,10 +136,13 @@ function mapRawImportRow(cells: unknown[], index: Partial<Record<keyof RawImport
   };
   const genderRaw = get('gender').toLowerCase();
   const gender = genderRaw === 'nam' ? 'male' : genderRaw === 'nữ' || genderRaw === 'nu' ? 'female' : 'unknown';
-  // Cột "Họ và tên (chủ hộ)" để trống -> chính dòng này là chủ hộ; có giá
-  // trị -> là thành viên (giá trị chỉ để tham khảo, không dùng để nhóm hộ
-  // vì họ tên có thể trùng — nhóm hộ dùng Số Hộ Tịch).
-  const isHouseholder = !get('headRef');
+  // Chủ hộ = cột "Họ và tên (chủ hộ)" để trống, HOẶC trùng với chính "Họ và
+  // tên" của dòng đó (khớp file mẫu thật của thôn — chủ hộ tự ghi tên mình
+  // vào cột đó thay vì để trống). Không dùng để nhóm hộ (nhóm hộ dùng Số Hộ
+  // Tịch) vì họ tên có thể trùng nhau giữa các hộ khác nhau.
+  const nameNorm = normalizeHeader(get('name'));
+  const headRefNorm = normalizeHeader(get('headRef'));
+  const isHouseholder = !headRefNorm || headRefNorm === nameNorm;
   const row: ImportRow = {
     name: get('name'),
     dob: get('dob'),
@@ -1180,7 +1183,7 @@ function ImportResidentsModal({ onClose, onSuccess }: { onClose: () => void; onS
 
           <p className="text-[11px] text-stone-400">
             Dùng đúng file mẫu đang có của thôn: cột <b>Số Hộ Tịch</b> dùng để gộp các dòng cùng 1 hộ (không lưu lại giá trị này, hệ thống tự sinh mã hộ riêng).
-            Cột <b>Họ và tên (chủ hộ)</b> để trống ở dòng chính chủ hộ; các thành viên khác điền tên chủ hộ vào đó (chỉ để tham khảo).
+            Cột <b>Họ và tên (chủ hộ)</b>: dòng chủ hộ để trống hoặc tự điền tên mình đều được — hệ thống tự nhận diện. Các thành viên khác điền tên chủ hộ vào đó (chỉ để tham khảo).
           </p>
 
           {parseError && <p className="text-xs font-semibold text-red-600">{parseError}</p>}
