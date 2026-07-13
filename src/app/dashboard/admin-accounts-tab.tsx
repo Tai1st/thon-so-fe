@@ -241,6 +241,8 @@ export function AdminAccountsTab({
   const [addingResident, setAddingResident] = useState(false);
   const [importingExcel, setImportingExcel] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [sortByHousehold, setSortByHousehold] = useState(false);
 
   function showNotice(type: "success" | "error" | "info", text: string) {
     setNotice({ type, text });
@@ -298,6 +300,20 @@ export function AdminAccountsTab({
     }
   }
 
+  const q = query.trim().toLowerCase();
+  const filteredAccounts = accountsRes.accounts.filter((acc) =>
+    !q
+      ? true
+      : [acc.name, acc.username, acc.position, acc.familyId].some((f) =>
+          (f || "").toLowerCase().includes(q),
+        ),
+  );
+  const visibleAccounts = sortByHousehold
+    ? [...filteredAccounts].sort((a, b) =>
+        (a.familyId || "").localeCompare(b.familyId || "") || a.name.localeCompare(b.name),
+      )
+    : filteredAccounts;
+
   return (
     <>
       {notice && (
@@ -340,6 +356,28 @@ export function AdminAccountsTab({
         </div>
       </div>
 
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <i className="fa-solid fa-magnifying-glass pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-xs text-stone-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Tìm theo tên, tên đăng nhập, chức vụ, mã hộ..."
+            className="w-full rounded-xl border border-stone-200 bg-stone-50 py-2.5 pr-3 pl-9 text-xs text-stone-800 outline-none focus:border-primary-500"
+          />
+        </div>
+        <button
+          onClick={() => setSortByHousehold((v) => !v)}
+          className={`flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all ${
+            sortByHousehold
+              ? "border-primary-600 bg-primary-600 text-white"
+              : "border-stone-200 bg-stone-50 text-stone-600 hover:bg-stone-100"
+          }`}
+        >
+          <i className="fa-solid fa-arrow-down-a-z" /> Sắp xếp theo hộ
+        </button>
+      </div>
+
       <div className="table-scroll-wrap rounded-xl border border-stone-200 bg-stone-50 text-left">
         <div className="table-scroll">
           <table className="w-full min-w-225 text-left text-xs">
@@ -352,7 +390,10 @@ export function AdminAccountsTab({
                   Tên đăng nhập
                 </th>
                 <th className="min-w-40 whitespace-nowrap p-3 font-semibold">
-                  phân quyền
+                  Phân quyền
+                </th>
+                <th className="min-w-25 whitespace-nowrap p-3 font-semibold">
+                  Mã hộ
                 </th>
                 <th className="min-w-35 whitespace-nowrap p-3 font-semibold">
                   Chức vụ
@@ -369,7 +410,7 @@ export function AdminAccountsTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200/40 text-stone-600">
-              {accountsRes.accounts.map((acc) => (
+              {visibleAccounts.map((acc) => (
                 <tr
                   key={acc._id}
                   className="transition-colors hover:bg-stone-50"
@@ -394,6 +435,9 @@ export function AdminAccountsTab({
                         Phụ trách: {acc.assoc}
                       </span>
                     )}
+                  </td>
+                  <td className="whitespace-nowrap p-3 font-mono text-stone-600">
+                    {acc.familyId || <span className="text-stone-300">—</span>}
                   </td>
                   <td className="whitespace-nowrap p-3 text-stone-600">
                     {acc.position || <span className="text-stone-300">—</span>}
@@ -514,6 +558,13 @@ export function AdminAccountsTab({
                   </td>
                 </tr>
               ))}
+              {visibleAccounts.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-4 text-center text-stone-400">
+                    Không tìm thấy tài khoản phù hợp.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

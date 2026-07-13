@@ -255,6 +255,7 @@ export interface AdminPendingRequests {
 export interface AdminAccountItem {
   _id: string;
   residentId?: string;
+  familyId?: string;
   username: string;
   name: string;
   role: string;
