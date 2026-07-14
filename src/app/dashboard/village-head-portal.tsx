@@ -21,7 +21,6 @@ import { FamilyTab } from './family-tab';
 import { ContributionsTab } from './contributions-tab';
 import { IncidentTab } from './incident-tab';
 import { ResidenceTab } from './residence-tab';
-import { AccountProfileModal } from './account-profile-modal';
 
 interface Me {
   id: string;
@@ -84,7 +83,6 @@ export function VillageHeadPortal({
   const [requestsState, setRequestsState] = useState(ownHousehold?.requests);
   const [incidentReportsState, setIncidentReportsState] = useState(ownHousehold?.incidentReports);
   const [residenceRegistrationsState, setResidenceRegistrationsState] = useState(ownHousehold?.residenceRegistrations);
-  const [showProfile, setShowProfile] = useState(false);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -123,7 +121,7 @@ export function VillageHeadPortal({
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-4">
           <button
-            onClick={() => setShowProfile(true)}
+            onClick={() => router.push('/dashboard/profile')}
             className="flex items-center gap-2.5 rounded-xl p-1 transition-colors hover:bg-stone-50"
           >
             {me.avatarUrl ? (
@@ -286,18 +284,6 @@ export function VillageHeadPortal({
           )}
         </div>
       </div>
-
-      {showProfile && (
-        <AccountProfileModal
-          name={me.name}
-          avatarUrl={me.avatarUrl || ''}
-          onClose={() => setShowProfile(false)}
-          onSuccess={() => {
-            setShowProfile(false);
-            router.refresh();
-          }}
-        />
-      )}
     </div>
   );
 }

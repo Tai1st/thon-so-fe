@@ -17,7 +17,6 @@ import { FamilyTab } from './family-tab';
 import { ContributionsTab } from './contributions-tab';
 import { IncidentTab } from './incident-tab';
 import { ResidenceTab } from './residence-tab';
-import { AccountProfileModal } from './account-profile-modal';
 
 interface Me {
   id: string;
@@ -64,7 +63,6 @@ export function ResidentPortal({
   const [requestsState, setRequestsState] = useState(requests);
   const [incidentReportsState, setIncidentReportsState] = useState(incidentReports);
   const [residenceRegistrationsState, setResidenceRegistrationsState] = useState(residenceRegistrations);
-  const [showProfile, setShowProfile] = useState(false);
 
   const pendingCount = requestsState.memberEditRequests.filter((r) => r.status === 'pending').length +
     requestsState.newMemberRequests.filter((r) => r.status === 'pending').length;
@@ -176,7 +174,7 @@ export function ResidentPortal({
             )}
           </button>
           <button
-            onClick={() => setShowProfile(true)}
+            onClick={() => router.push('/dashboard/profile')}
             className="flex items-center gap-2.5 rounded-xl p-1 transition-colors hover:bg-stone-50"
           >
             {me.avatarUrl ? (
@@ -313,18 +311,6 @@ export function ResidentPortal({
           <span className="text-[10px] font-semibold">Đăng xuất</span>
         </button>
       </nav>
-
-      {showProfile && (
-        <AccountProfileModal
-          name={me.name}
-          avatarUrl={me.avatarUrl || ''}
-          onClose={() => setShowProfile(false)}
-          onSuccess={() => {
-            setShowProfile(false);
-            router.refresh();
-          }}
-        />
-      )}
     </div>
   );
 }

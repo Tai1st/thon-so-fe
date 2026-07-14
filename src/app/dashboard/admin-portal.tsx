@@ -14,7 +14,6 @@ import { AdminAccountsTab } from './admin-accounts-tab';
 import { AdminPermissionsTab } from './admin-permissions-tab';
 import { AdminHomeContentTab } from './admin-home-content-tab';
 import { AdminLogsTab } from './admin-logs-tab';
-import { AccountProfileModal } from './account-profile-modal';
 
 interface Me {
   id: string;
@@ -55,7 +54,6 @@ export function AdminPortal({
   const [permissionsState, setPermissionsState] = useState(permissions);
   const [homeContentState, setHomeContentState] = useState(homeContent);
   const [logsState, setLogsState] = useState(logs);
-  const [showProfile, setShowProfile] = useState(false);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -100,7 +98,7 @@ export function AdminPortal({
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-4">
           <button
-            onClick={() => setShowProfile(true)}
+            onClick={() => router.push('/dashboard/profile')}
             className="flex items-center gap-2.5 rounded-xl p-1 transition-colors hover:bg-stone-50"
           >
             {me.avatarUrl ? (
@@ -204,18 +202,6 @@ export function AdminPortal({
           {activeTab === 'nhat-ky' && <AdminLogsTab logs={logsState} onLogsChange={setLogsState} />}
         </div>
       </div>
-
-      {showProfile && (
-        <AccountProfileModal
-          name={me.name}
-          avatarUrl={me.avatarUrl || ''}
-          onClose={() => setShowProfile(false)}
-          onSuccess={() => {
-            setShowProfile(false);
-            router.refresh();
-          }}
-        />
-      )}
     </div>
   );
 }
