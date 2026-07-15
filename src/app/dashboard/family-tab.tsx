@@ -60,15 +60,13 @@ export function FamilyTab({
   onRequestsChange: (r: RequestsMine) => void;
 }) {
   const groups = buildResidentGroups(oldVillages);
-  
-  // Lấy tenant từ sub-domain (mặc định là doanket nếu không tìm thấy)
-  const tenant = tenants.find((t) => t.slug === 'doanket') || tenants[0];
-  
   const [editingMember, setEditingMember] = useState<HouseholdMember | null>(null);
   const [addingMember, setAddingMember] = useState(false);
   const [houseNumberInput, setHouseNumberInput] = useState(household.houseNumber);
   const [gpsBusy, setGpsBusy] = useState(false);
   const [notice, setNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  const tenant = tenants.find((t) => t.slug === 'doanket') || tenants[0];
 
   const pendingEditByResident = new Set(
     requests.memberEditRequests.filter((r) => r.status === 'pending').map((r) => r.residentId),
@@ -218,7 +216,7 @@ export function FamilyTab({
         </div>
       </div>
 
-      {/* GPS section - Đã fix sử dụng tenant */}
+      {/* GPS section */}
       <div className="grid grid-cols-1 items-center gap-6 border-t border-stone-200 pt-6 text-left lg:grid-cols-12">
         <div className="space-y-4 lg:col-span-5">
           <span className="inline-block rounded bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-600">
@@ -227,7 +225,7 @@ export function FamilyTab({
           <h5 className="font-serif text-base font-bold text-stone-900">Xác định tọa độ GPS hộ gia đình</h5>
           <p className="text-xs leading-relaxed text-stone-500">
             Cập nhật chính xác vị trí phục vụ số hóa bản đồ đất đai, cứu hộ khẩn cấp và công tác phát triển an ninh số
-            cơ sở {tenant?.name || 'Thôn Đoàn Kết'}.
+            cơ sở Thôn Đoàn Kết.
           </p>
 
           <div className="space-y-1.5 rounded-xl border border-stone-200 bg-stone-50 p-3.5 font-mono text-xs text-stone-600">
@@ -291,11 +289,7 @@ export function FamilyTab({
         </div>
 
         <div className="lg:col-span-7">
-          <FamilyGpsMap 
-            familyId={household.familyId} 
-            gpsCoord={household.gpsCoord} 
-            tenant={tenant}
-          />
+          <FamilyGpsMap familyId={household.familyId} gpsCoord={household.gpsCoord} tenant={tenant} />
         </div>
       </div>
 
@@ -303,7 +297,6 @@ export function FamilyTab({
         <EditMemberModal
           member={editingMember}
           groups={groups}
-          tenant={tenant}
           onClose={() => setEditingMember(null)}
           onSuccess={async () => {
             setEditingMember(null);
@@ -316,7 +309,6 @@ export function FamilyTab({
       {addingMember && (
         <AddMemberModal
           groups={groups}
-          tenant={tenant}
           onClose={() => setAddingMember(false)}
           onSuccess={async () => {
             setAddingMember(false);
@@ -329,19 +321,14 @@ export function FamilyTab({
   );
 }
 
-// ============================================
-// EDIT MEMBER MODAL
-// ============================================
 function EditMemberModal({
   member,
   groups,
-  tenant,
   onClose,
   onSuccess,
 }: {
   member: HouseholdMember;
   groups: string[];
-  tenant: PublicTenant;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -393,9 +380,7 @@ function EditMemberModal({
     <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-stone-950/80 p-4">
       <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-2xl">
         <div className="flex shrink-0 items-center justify-between border-b border-stone-200 p-6">
-          <h3 className="font-serif text-base font-bold uppercase tracking-wider text-stone-900">
-            Yêu cầu sửa thông tin - {tenant?.name || 'Thôn'}
-          </h3>
+          <h3 className="font-serif text-base font-bold uppercase tracking-wider text-stone-900">Yêu cầu sửa thông tin</h3>
           <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-stone-500 hover:border-red-300 hover:text-red-500">
             <i className="fa-solid fa-xmark" />
           </button>
@@ -424,7 +409,7 @@ function EditMemberModal({
           <FormSelect label="Nhóm cư trú" value={form.group} onChange={(v) => setForm({ ...form, group: v })} options={groups} />
           <FormField
             label="Địa chỉ thường trú"
-            placeholder={`VD: ${tenant?.name || 'Thôn Đoàn Kết'}, xã Dliê Ya, tỉnh Đắk Lắk`}
+            placeholder="VD: Thôn Đoàn Kết, xã Dliê Ya, tỉnh Đắk Lắk"
             value={form.permanentAddress}
             onChange={(v) => setForm({ ...form, permanentAddress: v })}
           />
@@ -451,25 +436,7 @@ function EditMemberModal({
   );
 }
 
-// ============================================
-// ADD MEMBER MODAL
-// ============================================
-function AddMemberModal({ 
-  groups, 
-  tenant,
-  onClose, 
-  onSuccess 
-}: { 
-  groups: string[]; 
-  tenant: PublicTenant;
-  onClose: () => void; 
-  onSuccess: () => void; 
-}) {
-  // Tạo địa chỉ mặc định từ tenant
-  const defaultAddress = tenant ? 
-    `${tenant.name}, ${tenant.address}` : 
-    'Thôn Đoàn Kết, xã Dliê Ya, tỉnh Đắk Lắk';
-
+function AddMemberModal({ groups, onClose, onSuccess }: { groups: string[]; onClose: () => void; onSuccess: () => void }) {
   const [form, setForm] = useState({
     name: '',
     relation: '',
@@ -480,7 +447,7 @@ function AddMemberModal({
     fatherName: '',
     motherName: '',
     group: groups[0],
-    permanentAddress: defaultAddress,
+    permanentAddress: 'Thôn Đoàn Kết, xã Dliê Ya, tỉnh Đắk Lắk',
     temporaryAddress: '',
   });
   const [error, setError] = useState('');
@@ -509,9 +476,7 @@ function AddMemberModal({
     <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-stone-950/80 p-4">
       <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-2xl">
         <div className="flex shrink-0 items-center justify-between border-b border-stone-200 p-6">
-          <h3 className="font-serif text-base font-bold uppercase tracking-wider text-stone-900">
-            Thêm thành viên mới - {tenant?.name || 'Thôn'}
-          </h3>
+          <h3 className="font-serif text-base font-bold uppercase tracking-wider text-stone-900">Thêm thành viên mới</h3>
           <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-stone-500 hover:border-red-300 hover:text-red-500">
             <i className="fa-solid fa-xmark" />
           </button>
@@ -540,7 +505,7 @@ function AddMemberModal({
           <FormSelect label="Nhóm cư trú" value={form.group} onChange={(v) => setForm({ ...form, group: v })} options={groups} />
           <FormField
             label="Địa chỉ thường trú"
-            placeholder={`VD: ${tenant?.name || 'Thôn Đoàn Kết'}, xã Dliê Ya, tỉnh Đắk Lắk`}
+            placeholder="VD: Thôn Đoàn Kết, xã Dliê Ya, tỉnh Đắk Lắk"
             value={form.permanentAddress}
             onChange={(v) => setForm({ ...form, permanentAddress: v })}
           />
@@ -565,9 +530,6 @@ function AddMemberModal({
   );
 }
 
-// ============================================
-// FORM COMPONENTS
-// ============================================
 function FormField({
   label,
   value,
