@@ -16,7 +16,11 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /var/www/dlieya-fe
+            CURRENT=$(git rev-parse HEAD)
+            cp -r .next .next.backup 2>/dev/null || true
             git pull origin master
-            npm ci
-            npm run build
-            pm2 restart dlieya-web
+            npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+            npm run build || (mv .next.backup .next && pm2 restart dlieya-web && exit 1)
+            pm2 reload dlieya-web
+            pm2 save
+            echo "✅ Deploy FE completed successfully!"
