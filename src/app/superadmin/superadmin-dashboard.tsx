@@ -95,6 +95,12 @@ export function SuperAdminDashboard({
           >
             <i className="fa-solid fa-map mr-1" /> Quản lý Xã (KMZ)
           </Link>
+          <Link
+            href="/superadmin/administrative-units"
+            className="rounded-xl border border-stone-700 px-3.5 py-1.5 text-xs font-semibold text-stone-300 hover:border-stone-500"
+          >
+            <i className="fa-solid fa-landmark mr-1" /> Trụ sở Cơ quan
+          </Link>
           <button
             onClick={handleLogout}
             className="flex items-center gap-1.5 rounded-xl bg-red-950/50 px-3.5 py-1.5 text-xs font-bold text-red-400 transition-all hover:bg-red-600 hover:text-white"

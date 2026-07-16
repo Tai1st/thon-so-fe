@@ -217,6 +217,15 @@ export interface AdministrativeUnitItem {
   mapsUrl: string | null;
 }
 
+export interface SuperAdminAdministrativeUnit {
+  _id: string;
+  name: string;
+  logoUrl?: string;
+  lat: number;
+  lng: number;
+  mapsUrl?: string;
+}
+
 export interface VillageFund {
   thu: { household: string; amount: number }[];
   chi: { desc: string; amount: number }[];
