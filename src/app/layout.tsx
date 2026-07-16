@@ -24,6 +24,7 @@ const playfairDisplay = Playfair_Display({
 const DEFAULT_METADATA: Metadata = {
   title: 'Cổng Thông Tin Điện Tử - Tra cứu Thôn/Buôn',
   description: 'Cổng thông tin điện tử tra cứu các thôn/buôn trên địa bàn.',
+  icons: { icon: '/favicon.ico' },
 };
 
 // Title/description phải theo đúng tenant đang truy cập (subdomain), không
@@ -43,7 +44,7 @@ export async function generateMetadata(): Promise<Metadata> {
     return {
       title: `Cổng Thông Tin Điện Tử ${tenant.name}`,
       description: `Cổng thông tin điện tử ${tenant.name}`,
-      icons: homeContent.logoUrl ? { icon: homeContent.logoUrl } : undefined,
+      icons: { icon: homeContent.logoUrl || '/favicon.ico' },
     };
   } catch {
     return DEFAULT_METADATA;
