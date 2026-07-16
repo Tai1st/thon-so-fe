@@ -9,11 +9,13 @@ export default async function HomePage() {
 
   if (!slug) {
     // Domain gốc — trang danh mục tra cứu thôn/buôn (mục 4.1 tài liệu
-    // thiết kế), dựng từ dữ liệu Commune (nhập KMZ qua superadmin).
-    const [communes, administrativeUnits] = await Promise.all([
-      apiFetch<PublicCommune[]>('/communes/public', { auth: false }),
-      apiFetch<AdministrativeUnitItem[]>('/administrative-units', { auth: false }),
-    ]);
+    // thiết kế), dựng từ dữ liệu Commune (nhập KMZ qua superadmin). Trang
+    // này chỉ hiện đúng 1 xã (communes[0], xem ghi chú trong
+    // DirectoryClient) nên địa danh cũng chỉ lấy đúng của xã đó.
+    const communes = await apiFetch<PublicCommune[]>('/communes/public', { auth: false });
+    const administrativeUnits = communes[0]
+      ? await apiFetch<AdministrativeUnitItem[]>(`/administrative-units?communeId=${communes[0]._id}`, { auth: false })
+      : [];
     return <DirectoryClient communes={communes} administrativeUnits={administrativeUnits} />;
   }
 

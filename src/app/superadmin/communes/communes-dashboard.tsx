@@ -113,6 +113,12 @@ export function CommunesDashboard({ initialCommunes }: { initialCommunes: Commun
                   <td className="p-4 text-right">
                     <div className="flex justify-end gap-2">
                       <Link
+                        href={`/superadmin/communes/${c._id}/places`}
+                        className="rounded bg-stone-800 px-2.5 py-1 text-[11px] font-semibold text-stone-300 hover:bg-stone-700"
+                      >
+                        <i className="fa-solid fa-map-pin mr-1" /> Thêm địa danh
+                      </Link>
+                      <Link
                         href={`/superadmin/communes/${c._id}`}
                         className="rounded bg-emerald-950/50 px-2.5 py-1 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-600 hover:text-white"
                       >

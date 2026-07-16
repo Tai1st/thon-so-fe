@@ -2,7 +2,12 @@
 
 import { useEffect, useRef } from 'react';
 import type { Map as LeafletMap, Polygon } from 'leaflet';
+import { ADMINISTRATIVE_UNIT_CATEGORIES } from '@/lib/types';
 import type { AdministrativeUnitItem, PublicCommuneVillage } from '@/lib/types';
+
+const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
+  ADMINISTRATIVE_UNIT_CATEGORIES.map((c) => [c.slug, c.label]),
+);
 
 // Bản đồ công khai ở domain gốc — theo đúng phong cách tra-cuu.html gốc:
 // MỖI thôn 1 màu riêng (kể cả thôn chưa có cổng thông tin), lấy đúng bảng
@@ -125,6 +130,7 @@ export function DirectoryLeaflet({
           .addTo(adminUnitsLayer)
           .bindPopup(
             `<b>${unit.name}</b>` +
+              `<br/><span style="color:#64748b">${CATEGORY_LABEL[unit.category] || 'Khác'}</span>` +
               (unit.mapsUrl
                 ? `<br/><a href="${unit.mapsUrl}" target="_blank" rel="noopener noreferrer">Xem trên Google Maps</a>`
                 : ''),

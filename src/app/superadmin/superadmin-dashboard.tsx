@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ClientApiError } from '@/lib/client-api';
 import type { TenantRow } from './page';
-import type { CommuneDetail, CommuneListItem } from '@/lib/types';
+import type { CommuneListItem } from '@/lib/types';
 
 // Dùng chung clientApi() nhưng trỏ tới /api/superadmin-backend/* (không
 // phải /api/backend/*) — 2 proxy khác nhau vì cookie khác nhau (session
@@ -33,7 +33,6 @@ export function SuperAdminDashboard({
 }) {
   const router = useRouter();
   const [tenants, setTenants] = useState(initialTenants);
-  const [assigningTenant, setAssigningTenant] = useState<TenantRow | null>(null);
   const [deletingTenant, setDeletingTenant] = useState<TenantRow | null>(null);
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const communeById = new Map(communes.map((c) => [c._id, c]));
@@ -94,12 +93,6 @@ export function SuperAdminDashboard({
             className="rounded-xl border border-stone-700 px-3.5 py-1.5 text-xs font-semibold text-stone-300 hover:border-stone-500"
           >
             <i className="fa-solid fa-map mr-1" /> Quản lý Xã (KMZ)
-          </Link>
-          <Link
-            href="/superadmin/administrative-units"
-            className="rounded-xl border border-stone-700 px-3.5 py-1.5 text-xs font-semibold text-stone-300 hover:border-stone-500"
-          >
-            <i className="fa-solid fa-landmark mr-1" /> Trụ sở Cơ quan
           </Link>
           <button
             onClick={handleLogout}
@@ -174,12 +167,6 @@ export function SuperAdminDashboard({
                   <td className="p-4 text-right">
                     <div className="flex justify-end gap-2">
                       <button
-                        onClick={() => setAssigningTenant(t)}
-                        className="rounded bg-stone-800 px-2.5 py-1 text-[11px] font-semibold text-stone-300 transition-all hover:bg-stone-700"
-                      >
-                        Sửa
-                      </button>
-                      <button
                         onClick={() => toggleArchive(t)}
                         className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-all ${
                           t.archivedAt
@@ -210,19 +197,6 @@ export function SuperAdminDashboard({
           </table>
         </div>
       </div>
-
-      {assigningTenant && (
-        <AssignVillageModal
-          tenant={assigningTenant}
-          communes={communes}
-          onClose={() => setAssigningTenant(null)}
-          onSuccess={async (message) => {
-            setAssigningTenant(null);
-            await refresh();
-            showNotice('success', message);
-          }}
-        />
-      )}
 
       {deletingTenant && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-4">
@@ -261,133 +235,3 @@ export function SuperAdminDashboard({
   );
 }
 
-function AssignVillageModal({
-  tenant,
-  communes,
-  onClose,
-  onSuccess,
-}: {
-  tenant: TenantRow;
-  communes: CommuneListItem[];
-  onClose: () => void;
-  onSuccess: (message: string) => void;
-}) {
-  const [selectedCommuneId, setSelectedCommuneId] = useState(tenant.communeId || '');
-  const [communeDetail, setCommuneDetail] = useState<CommuneDetail | null>(null);
-  const [selectedVillageIndex, setSelectedVillageIndex] = useState<number | null>(tenant.communeVillageIndex);
-  const [loadingVillages, setLoadingVillages] = useState(false);
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  async function loadVillages(communeId: string) {
-    setLoadingVillages(true);
-    setCommuneDetail(null);
-    try {
-      const data = await superAdminClientApi<CommuneDetail>(`superadmin/communes/${communeId}`);
-      setCommuneDetail(data);
-    } catch {
-      setError('Không tải được danh sách thôn của xã này.');
-    } finally {
-      setLoadingVillages(false);
-    }
-  }
-
-  function selectCommune(communeId: string) {
-    setSelectedCommuneId(communeId);
-    setSelectedVillageIndex(communeId === tenant.communeId ? tenant.communeVillageIndex : null);
-    setError('');
-    if (communeId) loadVillages(communeId);
-    else setCommuneDetail(null);
-  }
-
-  async function submitAssign() {
-    setError('');
-    if (selectedCommuneId && selectedVillageIndex === null) {
-      setError('Vui lòng chọn 1 thôn trong xã.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await superAdminClientApi(`superadmin/tenants/${tenant._id}/assign-village`, {
-        method: 'PATCH',
-        body: selectedCommuneId ? { communeId: selectedCommuneId, villageIndex: selectedVillageIndex } : { communeId: null },
-      });
-      onSuccess(selectedCommuneId ? `Đã gán "${tenant.name}" vào xã đã chọn.` : `Đã bỏ gán xã khỏi "${tenant.name}".`);
-    } catch (err) {
-      setError(err instanceof ClientApiError ? err.message : 'Không thể cập nhật.');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-stone-800 bg-stone-900 shadow-2xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-stone-800 p-6">
-          <h3 className="font-serif text-base font-bold uppercase tracking-wider text-white">Sửa: {tenant.name}</h3>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-700 bg-stone-800 text-stone-400 hover:border-red-500 hover:text-red-400">
-            <i className="fa-solid fa-xmark" />
-          </button>
-        </div>
-        <div className="flex-1 space-y-3 overflow-y-auto p-6">
-          <div className="space-y-1.5">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Thuộc xã</label>
-            <select
-              value={selectedCommuneId}
-              onChange={(e) => selectCommune(e.target.value)}
-              className="w-full rounded-xl border border-stone-700 bg-stone-800 px-3 py-2 text-xs text-white outline-none transition-colors focus:border-emerald-500"
-            >
-              <option value="">— Không gán xã nào —</option>
-              {communes.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {selectedCommuneId && (
-            <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Chọn thôn</label>
-              {loadingVillages && <p className="text-xs text-stone-500">Đang tải...</p>}
-              {communeDetail && (
-                <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-xl border border-stone-800 p-2">
-                  {communeDetail.villages.map((v, index) => {
-                    const isOtherTenant = v.claimed && v.tenantId !== tenant._id;
-                    return (
-                      <label
-                        key={index}
-                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${
-                          isOtherTenant ? 'cursor-not-allowed text-stone-600' : 'cursor-pointer text-stone-200 hover:bg-stone-800'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="village"
-                          disabled={isOtherTenant}
-                          checked={selectedVillageIndex === index}
-                          onChange={() => setSelectedVillageIndex(index)}
-                        />
-                        {v.name}
-                        {isOtherTenant && <span className="text-[10px] text-stone-600">(đã có tenant khác)</span>}
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {error && <p className="text-[11px] font-semibold text-red-400">{error}</p>}
-          <button
-            onClick={submitAssign}
-            disabled={submitting}
-            className="w-full rounded-xl bg-emerald-600 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all hover:bg-emerald-500 disabled:opacity-50"
-          >
-            {submitting ? 'Đang lưu...' : 'Lưu'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}

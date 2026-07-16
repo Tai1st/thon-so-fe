@@ -184,6 +184,8 @@ export interface CommuneVillage {
   boundary: { type: string; coordinates: number[][][] };
   claimed: boolean;
   tenantId?: string;
+  tenantSlug?: string | null;
+  tenantName?: string | null;
 }
 
 export interface CommuneDetail {
@@ -209,8 +211,22 @@ export interface PublicCommune {
   villages: PublicCommuneVillage[];
 }
 
+export const ADMINISTRATIVE_UNIT_CATEGORIES = [
+  { slug: 'dang-uy', label: 'Đảng ủy', icon: 'fa-flag' },
+  { slug: 'ubnd', label: 'UBND / HĐND', icon: 'fa-building-columns' },
+  { slug: 'mttq', label: 'Mặt trận Tổ quốc', icon: 'fa-people-group' },
+  { slug: 'cong-an', label: 'Công an', icon: 'fa-shield-halved' },
+  { slug: 'truong-hoc', label: 'Trường học', icon: 'fa-school' },
+  { slug: 'y-te', label: 'Y tế', icon: 'fa-briefcase-medical' },
+  { slug: 'quan-an', label: 'Quán ăn', icon: 'fa-utensils' },
+  { slug: 'tap-hoa', label: 'Tạp hóa', icon: 'fa-cart-shopping' },
+  { slug: 'khac', label: 'Khác', icon: 'fa-map-pin' },
+] as const;
+export type AdministrativeUnitCategory = (typeof ADMINISTRATIVE_UNIT_CATEGORIES)[number]['slug'];
+
 export interface AdministrativeUnitItem {
   name: string;
+  category: AdministrativeUnitCategory;
   logoUrl: string | null;
   lat: number;
   lng: number;
@@ -220,6 +236,8 @@ export interface AdministrativeUnitItem {
 export interface SuperAdminAdministrativeUnit {
   _id: string;
   name: string;
+  category: AdministrativeUnitCategory;
+  communeId: string | null;
   logoUrl?: string;
   lat: number;
   lng: number;
