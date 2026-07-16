@@ -80,6 +80,52 @@ body {
   }
 }
 
+/* Cụm nút "định vị vị trí của tôi" / "xem danh sách" trên bản đồ danh
+   mục — style giống hệt nút zoom mặc định của Leaflet để đứng chung 1
+   cụm góc trái trên mà không bị lệch tông. */
+.directory-tools {
+  display: flex;
+  flex-direction: column;
+}
+.directory-tool-btn {
+  width: 30px;
+  height: 30px;
+  background: #fff;
+  color: #1f2937;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-bottom: 1px solid #ececec;
+}
+.directory-tool-btn:last-child {
+  border-bottom: 0;
+}
+.directory-tool-btn:hover {
+  background: #f5f5f4;
+}
+
+/* Thumbnail "Ảnh vệ tinh" góc trái dưới bản đồ danh mục — bấm để đổi tile
+   layer (đường phố <-> vệ tinh), thay cho dropdown layer switcher. */
+.directory-satellite-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #1c1917;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.directory-satellite-toggle.active {
+  background: #16a34a;
+}
+
 /* Bảng dữ liệu nhiều cột (danh bạ, quỹ thôn, tài khoản...) — bọc ngoài
    bằng .table-scroll-wrap (position: relative, không cuộn) rồi
    .table-scroll (overflow-x: auto, cuộn thật) để đặt fade-hint (::after)

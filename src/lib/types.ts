@@ -203,24 +203,31 @@ export interface PublicCommuneVillage {
   tenantSlug: string | null;
   tenantName: string | null;
   households: { lat: number; lng: number; name: string }[];
+  householdCount: number;
+  populationCount: number;
+  areaKm2: number;
 }
 
 export interface PublicCommune {
   _id: string;
   name: string;
+  areaKm2: number;
+  totalHouseholds: number;
+  totalPopulation: number;
+  densityPerKm2: number;
   villages: PublicCommuneVillage[];
 }
 
 export const ADMINISTRATIVE_UNIT_CATEGORIES = [
-  { slug: 'dang-uy', label: 'Đảng ủy', icon: 'fa-flag' },
-  { slug: 'ubnd', label: 'UBND / HĐND', icon: 'fa-building-columns' },
-  { slug: 'mttq', label: 'Mặt trận Tổ quốc', icon: 'fa-people-group' },
-  { slug: 'cong-an', label: 'Công an', icon: 'fa-shield-halved' },
-  { slug: 'truong-hoc', label: 'Trường học', icon: 'fa-school' },
-  { slug: 'y-te', label: 'Y tế', icon: 'fa-briefcase-medical' },
-  { slug: 'quan-an', label: 'Quán ăn', icon: 'fa-utensils' },
-  { slug: 'tap-hoa', label: 'Tạp hóa', icon: 'fa-cart-shopping' },
-  { slug: 'khac', label: 'Khác', icon: 'fa-map-pin' },
+  { slug: 'dang-uy', label: 'Đảng ủy', icon: 'fa-flag', color: '#dc2626' },
+  { slug: 'ubnd', label: 'UBND / HĐND', icon: 'fa-building-columns', color: '#dc2626' },
+  { slug: 'mttq', label: 'Mặt trận Tổ quốc', icon: 'fa-people-group', color: '#9333ea' },
+  { slug: 'cong-an', label: 'Công an', icon: 'fa-shield-halved', color: '#dc2626' },
+  { slug: 'truong-hoc', label: 'Trường học', icon: 'fa-school', color: '#2563eb' },
+  { slug: 'y-te', label: 'Y tế', icon: 'fa-briefcase-medical', color: '#16a34a' },
+  { slug: 'quan-an', label: 'Quán ăn', icon: 'fa-utensils', color: '#ea580c' },
+  { slug: 'tap-hoa', label: 'Tạp hóa', icon: 'fa-cart-shopping', color: '#ea580c' },
+  { slug: 'khac', label: 'Khác', icon: 'fa-map-pin', color: '#64748b' },
 ] as const;
 export type AdministrativeUnitCategory = (typeof ADMINISTRATIVE_UNIT_CATEGORIES)[number]['slug'];
 
