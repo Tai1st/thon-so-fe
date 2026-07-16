@@ -41,6 +41,7 @@ export function ResidentPortal({
   requests,
   homeContent,
   tenants,
+  tenantSlug,
   roster,
   villageFund,
   incidentReports,
@@ -51,6 +52,7 @@ export function ResidentPortal({
   requests: RequestsMine;
   homeContent: HomeContent;
   tenants: PublicTenant[];
+  tenantSlug: string | null;
   roster: PublicRoster;
   villageFund: VillageFund;
   incidentReports: IncidentReportItem[];
@@ -103,6 +105,7 @@ export function ResidentPortal({
           household={householdState}
           requests={requestsState}
           tenants={tenants}
+          tenantSlug={tenantSlug}
           oldVillages={homeContent.oldVillages}
           onHouseholdChange={setHouseholdState}
           onRequestsChange={setRequestsState}

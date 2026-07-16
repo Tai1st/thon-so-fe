@@ -48,6 +48,7 @@ export function FamilyTab({
   household,
   requests,
   tenants,
+  tenantSlug,
   oldVillages,
   onHouseholdChange,
   onRequestsChange,
@@ -55,6 +56,7 @@ export function FamilyTab({
   household: HouseholdData;
   requests: RequestsMine;
   tenants: PublicTenant[];
+  tenantSlug: string | null;
   oldVillages: string[] | undefined;
   onHouseholdChange: (h: HouseholdData) => void;
   onRequestsChange: (r: RequestsMine) => void;
@@ -66,7 +68,7 @@ export function FamilyTab({
   const [gpsBusy, setGpsBusy] = useState(false);
   const [notice, setNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
-  const tenant = tenants.find((t) => t.slug === 'doanket') || tenants[0];
+  const tenant = tenants.find((t) => t.slug === tenantSlug) || tenants[0];
 
   const pendingEditByResident = new Set(
     requests.memberEditRequests.filter((r) => r.status === 'pending').map((r) => r.residentId),
@@ -225,7 +227,7 @@ export function FamilyTab({
           <h5 className="font-serif text-base font-bold text-stone-900">Xác định tọa độ GPS hộ gia đình</h5>
           <p className="text-xs leading-relaxed text-stone-500">
             Cập nhật chính xác vị trí phục vụ số hóa bản đồ đất đai, cứu hộ khẩn cấp và công tác phát triển an ninh số
-            cơ sở Thôn Đoàn Kết.
+            cơ sở {tenant?.name || 'thôn'}.
           </p>
 
           <div className="space-y-1.5 rounded-xl border border-stone-200 bg-stone-50 p-3.5 font-mono text-xs text-stone-600">

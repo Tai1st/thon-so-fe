@@ -6,6 +6,7 @@ import type {
   HomeContent,
   HouseholdData,
   IncidentReportItem,
+  NewsItem,
   PublicRoster,
   PublicTenant,
   RequestsMine,
@@ -16,6 +17,7 @@ import type {
 } from '@/lib/types';
 import { VillageHeadResidentsTab } from './village-head-residents-tab';
 import { VillageHeadFundTab } from './village-head-fund-tab';
+import { VillageHeadNewsTab } from './village-head-news-tab';
 import { OverviewTab } from './overview-tab';
 import { FamilyTab } from './family-tab';
 import { ContributionsTab } from './contributions-tab';
@@ -39,11 +41,13 @@ interface OwnHousehold {
   villageFund: VillageFund;
   incidentReports: IncidentReportItem[];
   residenceRegistrations: ResidenceRegistrationItem[];
+  tenantSlug: string | null;
 }
 
 const MANAGEMENT_TABS = [
   { id: 'toan-thon', label: 'Quản lý Toàn Thôn', icon: 'fa-landmark' },
   { id: 'quy-thon', label: 'Quản lý Quỹ Thôn', icon: 'fa-coins' },
+  { id: 'tin-tuc', label: 'Tin tức & Thông báo', icon: 'fa-newspaper' },
 ] as const;
 
 // Trưởng thôn cũng là 1 cư dân có hộ gia đình thật trong thôn — nhóm tab
@@ -65,6 +69,7 @@ export function VillageHeadPortal({
   siteName,
   logoUrl,
   oldVillages,
+  news,
 }: {
   me: Me;
   residents: VillageHeadResident[];
@@ -73,6 +78,7 @@ export function VillageHeadPortal({
   siteName: string;
   logoUrl: string;
   oldVillages: string[] | undefined;
+  news: NewsItem[];
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>('toan-thon');
@@ -238,9 +244,15 @@ export function VillageHeadPortal({
 
         <div className="space-y-6 p-6 md:col-span-10">
           {activeTab === 'toan-thon' && (
-            <VillageHeadResidentsTab residents={residentsState} oldVillages={oldVillages} onResidentsChange={setResidentsState} />
+            <VillageHeadResidentsTab
+              residents={residentsState}
+              oldVillages={oldVillages}
+              siteName={siteName}
+              onResidentsChange={setResidentsState}
+            />
           )}
           {activeTab === 'quy-thon' && <VillageHeadFundTab fund={fundState} onFundChange={setFundState} />}
+          {activeTab === 'tin-tuc' && <VillageHeadNewsTab news={news} />}
 
           {ownHousehold && householdState && requestsState && (
             <>
@@ -252,6 +264,7 @@ export function VillageHeadPortal({
                   homeContent={ownHousehold.homeContent}
                   roster={ownHousehold.roster}
                   onGoToTab={setActiveTab}
+                  tabIds={{ family: 'ho-thanh-vien', contributions: 'ho-quy-thon', incident: 'ho-bao-antt' }}
                 />
               )}
               {activeTab === 'ho-thanh-vien' && (
@@ -259,6 +272,7 @@ export function VillageHeadPortal({
                   household={householdState}
                   requests={requestsState}
                   tenants={ownHousehold.tenants}
+                  tenantSlug={ownHousehold.tenantSlug}
                   oldVillages={ownHousehold.homeContent.oldVillages}
                   onHouseholdChange={setHouseholdState}
                   onRequestsChange={setRequestsState}
@@ -284,6 +298,45 @@ export function VillageHeadPortal({
           )}
         </div>
       </div>
+
+      {/* Mobile bottom tab bar */}
+      <nav
+        className={`fixed bottom-0 left-0 right-0 z-50 grid border-t border-stone-200 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.06)] md:hidden ${ownHousehold ? 'grid-cols-5' : 'grid-cols-4'}`}
+      >
+        {ownHousehold && (
+          <button
+            onClick={() => setActiveTab('ho-tong-quan')}
+            className={`flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'ho-tong-quan' ? 'text-primary-600' : 'text-stone-500'}`}
+          >
+            <i className="fa-solid fa-house text-lg" />
+            <span className="text-[10px] font-semibold">Trang chủ</span>
+          </button>
+        )}
+        <button
+          onClick={() => setActiveTab('toan-thon')}
+          className={`flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'toan-thon' ? 'text-primary-600' : 'text-stone-500'}`}
+        >
+          <i className="fa-solid fa-landmark text-lg" />
+          <span className="text-[10px] font-semibold">Toàn thôn</span>
+        </button>
+        <button onClick={() => setActiveTab('quy-thon')} className="-mt-5 flex flex-col items-center justify-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg">
+            <i className="fa-solid fa-coins text-lg" />
+          </span>
+          <span className="mt-0.5 text-[9px] font-semibold text-primary-700">Quỹ thôn</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('tin-tuc')}
+          className={`flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'tin-tuc' ? 'text-primary-600' : 'text-stone-500'}`}
+        >
+          <i className="fa-solid fa-newspaper text-lg" />
+          <span className="text-[10px] font-semibold">Tin tức</span>
+        </button>
+        <button onClick={handleLogout} className="flex flex-col items-center justify-center gap-1 py-2 text-stone-500">
+          <i className="fa-solid fa-right-from-bracket text-lg" />
+          <span className="text-[10px] font-semibold">Đăng xuất</span>
+        </button>
+      </nav>
     </div>
   );
 }

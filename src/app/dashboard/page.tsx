@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api';
+import { getTenantSlug } from '@/lib/tenant';
 import { LogoutButton } from './logout-button';
 import { ResidentPortal } from './resident-portal';
 import { VillageHeadPortal } from './village-head-portal';
@@ -8,6 +9,7 @@ import { SecurityTeamPortal } from './security-team-portal';
 import { AssociationOfficerPortal } from './association-officer-portal';
 import type {
   AdminAccountsResponse,
+  AdminAssociationItem,
   AdminPendingRequests,
   AssocFundOverview,
   AssocLoan,
@@ -46,7 +48,7 @@ interface Me {
 // FE ẩn hẳn nhóm tab "Hộ gia đình của tôi" trong trường hợp đó.
 async function fetchOwnHouseholdData() {
   try {
-    const [household, requests, homeContent, tenants, roster, villageFund, incidentReports, residenceRegistrations] =
+    const [household, requests, homeContent, tenants, roster, villageFund, incidentReports, residenceRegistrations, tenantSlug] =
       await Promise.all([
         apiFetch<HouseholdData>('/households/me'),
         apiFetch<RequestsMine>('/requests/mine'),
@@ -56,8 +58,9 @@ async function fetchOwnHouseholdData() {
         apiFetch<VillageFund>('/households/village-fund'),
         apiFetch<IncidentReportItem[]>('/incident-reports/mine'),
         apiFetch<ResidenceRegistrationItem[]>('/residence-registrations/mine'),
+        getTenantSlug(),
       ]);
-    return { household, requests, homeContent, tenants, roster, villageFund, incidentReports, residenceRegistrations };
+    return { household, requests, homeContent, tenants, roster, villageFund, incidentReports, residenceRegistrations, tenantSlug };
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return null;
     throw err;
@@ -70,6 +73,7 @@ async function fetchBrand() {
     siteName: content.siteName || 'Thôn Đoàn Kết',
     logoUrl: content.logoUrl || '/logo.png',
     oldVillages: content.oldVillages,
+    news: content.news,
   };
 }
 
@@ -100,14 +104,16 @@ export default async function DashboardPage() {
         siteName={brand.siteName}
         logoUrl={brand.logoUrl}
         oldVillages={brand.oldVillages}
+        news={brand.news}
       />
     );
   }
 
   if (me.role === 'admin') {
-    const [pendingRequests, accountsRes, permissions, homeContent, logs] = await Promise.all([
+    const [pendingRequests, accountsRes, associations, permissions, homeContent, logs] = await Promise.all([
       apiFetch<AdminPendingRequests>('/admin/requests/pending'),
       apiFetch<AdminAccountsResponse>('/admin/accounts'),
+      apiFetch<AdminAssociationItem[]>('/admin/associations'),
       apiFetch<PermissionMatrix>('/admin/permissions'),
       apiFetch<HomeContent>('/admin/home-content'),
       apiFetch<AuditLogItem[]>('/admin/logs'),
@@ -117,6 +123,7 @@ export default async function DashboardPage() {
         me={me}
         pendingRequests={pendingRequests}
         accountsRes={accountsRes}
+        associations={associations}
         permissions={permissions}
         homeContent={homeContent}
         logs={logs}
@@ -202,6 +209,7 @@ export default async function DashboardPage() {
       requests={ownHousehold.requests}
       homeContent={ownHousehold.homeContent}
       tenants={ownHousehold.tenants}
+      tenantSlug={ownHousehold.tenantSlug}
       roster={ownHousehold.roster}
       villageFund={ownHousehold.villageFund}
       incidentReports={ownHousehold.incidentReports}

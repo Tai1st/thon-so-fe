@@ -4,7 +4,9 @@ import { useEffect, useRef } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
 import type { GpsCoord, PublicTenant } from '@/lib/types';
 
-const DOAN_KET_CENTER: [number, number] = [13.125944, 108.324778];
+// Chỉ dùng khi hoàn toàn không có dữ liệu tenant nào (trường hợp hiếm) —
+// tọa độ trung tâm Việt Nam, không gắn với 1 thôn cụ thể nào.
+const VIETNAM_CENTER: [number, number] = [16.047079, 108.20623];
 
 function housePinIcon(L: typeof import('leaflet')) {
   const color = '#9c3000';
@@ -19,7 +21,7 @@ function housePinIcon(L: typeof import('leaflet')) {
 }
 
 // Bản đồ thật (Leaflet + OpenStreetMap) cho GPS hộ gia đình — vẽ ranh giới
-// thật của Thôn Đoàn Kết (Tenant.boundary, cùng nguồn GeoJSON dùng khi
+// thật của tenant hiện tại (Tenant.boundary, cùng nguồn GeoJSON dùng khi
 // migrate-seed) và 1 marker duy nhất tại vị trí hộ (nếu đã định vị). Ranh
 // giới các thôn/buôn lân cận (bản mẫu vẽ thêm để làm bối cảnh xung quanh)
 // được lược bớt ở vòng này để không phải mang theo dữ liệu 24 thôn — có
@@ -48,10 +50,13 @@ export function FamilyGpsMap({
         mapRef.current = null;
       }
 
+      const tenantCenter: [number, number] | null = tenant ? [tenant.lat, tenant.lng] : null;
+      const initialCenter = tenantCenter || VIETNAM_CENTER;
+
       // Phải setView() trước khi addTo() — L.tileLayer(...).addTo(map) ném
       // lỗi "Set map center and zoom first" nếu map chưa có view (xem ghi
       // chú tương tự trong prototype js/resident-dashboard.js).
-      const map = L.map(containerRef.current, { scrollWheelZoom: false }).setView(DOAN_KET_CENTER, 15);
+      const map = L.map(containerRef.current, { scrollWheelZoom: false }).setView(initialCenter, 15);
       mapRef.current = map;
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -70,7 +75,7 @@ export function FamilyGpsMap({
         }).addTo(map);
         map.fitBounds(poly.getBounds(), { padding: [20, 20] });
       } else {
-        map.setView(gpsCoord ? [gpsCoord.lat, gpsCoord.lng] : DOAN_KET_CENTER, 15);
+        map.setView(gpsCoord ? [gpsCoord.lat, gpsCoord.lng] : initialCenter, 15);
       }
 
       if (gpsCoord) {

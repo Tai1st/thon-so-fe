@@ -44,6 +44,7 @@ interface OwnHousehold {
   villageFund: VillageFund;
   incidentReports: IncidentReportItem[];
   residenceRegistrations: ResidenceRegistrationItem[];
+  tenantSlug: string | null;
 }
 
 const TABS = [
@@ -265,7 +266,7 @@ export function SecurityTeamPortal({
           {activeTab === 'bien-ban' && (
             <SecurityTeamMinutesTab minutes={minutesState} reports={reportsState} onMinutesChange={setMinutesState} />
           )}
-          {activeTab === 'dan-cu' && <SecurityTeamResidentsTab residents={residents} />}
+          {activeTab === 'dan-cu' && <SecurityTeamResidentsTab residents={residents} siteName={siteName} />}
           {activeTab === 'to-doi' && <SecurityTeamRosterTab roster={roster} />}
 
           {ownHousehold && householdState && requestsState && (
@@ -278,6 +279,7 @@ export function SecurityTeamPortal({
                   homeContent={ownHousehold.homeContent}
                   roster={ownHousehold.roster}
                   onGoToTab={setActiveTab}
+                  tabIds={{ family: 'ho-thanh-vien', contributions: 'ho-quy-thon', incident: 'ho-bao-antt' }}
                 />
               )}
               {activeTab === 'ho-thanh-vien' && (
@@ -285,6 +287,7 @@ export function SecurityTeamPortal({
                   household={householdState}
                   requests={requestsState}
                   tenants={ownHousehold.tenants}
+                  tenantSlug={ownHousehold.tenantSlug}
                   oldVillages={ownHousehold.homeContent.oldVillages}
                   onHouseholdChange={setHouseholdState}
                   onRequestsChange={setRequestsState}
@@ -310,6 +313,61 @@ export function SecurityTeamPortal({
           )}
         </div>
       </div>
+
+      {/* Mobile bottom tab bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-5 border-t border-stone-200 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.06)] md:hidden">
+        {ownHousehold ? (
+          <button
+            onClick={() => setActiveTab('ho-tong-quan')}
+            className={`flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'ho-tong-quan' ? 'text-primary-600' : 'text-stone-500'}`}
+          >
+            <i className="fa-solid fa-house text-lg" />
+            <span className="text-[10px] font-semibold">Trang chủ</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setActiveTab('luu-tru')}
+            className={`relative flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'luu-tru' ? 'text-primary-600' : 'text-stone-500'}`}
+          >
+            <i className="fa-solid fa-house-user text-lg" />
+            <span className="text-[10px] font-semibold">Lưu trú</span>
+            {registrationsState.filter((r) => r.status === 'Chờ duyệt').length > 0 && (
+              <span className="absolute right-3 top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white">
+                {registrationsState.filter((r) => r.status === 'Chờ duyệt').length}
+              </span>
+            )}
+          </button>
+        )}
+        <button
+          onClick={() => setActiveTab('tin-bao')}
+          className={`relative flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'tin-bao' ? 'text-primary-600' : 'text-stone-500'}`}
+        >
+          <i className="fa-solid fa-bell text-lg" />
+          <span className="text-[10px] font-semibold">Tin báo</span>
+          {reportsState.filter((r) => r.status === 'Mới').length > 0 && (
+            <span className="absolute right-3 top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white">
+              {reportsState.filter((r) => r.status === 'Mới').length}
+            </span>
+          )}
+        </button>
+        <button onClick={() => setActiveTab('bien-ban')} className="-mt-5 flex flex-col items-center justify-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg">
+            <i className="fa-solid fa-file-signature text-lg" />
+          </span>
+          <span className="mt-0.5 text-[9px] font-semibold text-primary-700">Biên bản</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('dan-cu')}
+          className={`flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'dan-cu' ? 'text-primary-600' : 'text-stone-500'}`}
+        >
+          <i className="fa-solid fa-users-viewfinder text-lg" />
+          <span className="text-[10px] font-semibold">Dân cư</span>
+        </button>
+        <button onClick={handleLogout} className="flex flex-col items-center justify-center gap-1 py-2 text-stone-500">
+          <i className="fa-solid fa-right-from-bracket text-lg" />
+          <span className="text-[10px] font-semibold">Đăng xuất</span>
+        </button>
+      </nav>
     </div>
   );
 }

@@ -55,6 +55,7 @@ export interface HomeContent {
   siteName?: string;
   logoUrl?: string;
   oldVillages?: string[];
+  slug?: string;
 }
 
 export interface RosterMember {
@@ -286,6 +287,13 @@ export interface AdminAccountsResponse {
   accounts: AdminAccountItem[];
   residentCount: number;
   unaccountedCount: number;
+}
+
+export interface AdminAssociationItem {
+  name: string;
+  balance: number;
+  memberCount: number;
+  leaderName: string | null;
 }
 
 export type PermissionLevel = 'view' | 'view-edit' | 'locked';

@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { clientApi } from '@/lib/client-api';
-import type { HouseholdLocation, PublicTenant, SecurityTeamResident } from '@/lib/types';
+import type { HomeContent, HouseholdLocation, PublicTenant, SecurityTeamResident } from '@/lib/types';
 
 const FamilyGpsMap = dynamic(() => import('./family-gps-map').then((m) => m.FamilyGpsMap), { ssr: false });
 
-export function SecurityTeamResidentsTab({ residents }: { residents: SecurityTeamResident[] }) {
+export function SecurityTeamResidentsTab({ residents, siteName }: { residents: SecurityTeamResident[]; siteName: string }) {
   const [query, setQuery] = useState('');
   const [locationTarget, setLocationTarget] = useState<SecurityTeamResident | null>(null);
 
@@ -26,7 +26,7 @@ export function SecurityTeamResidentsTab({ residents }: { residents: SecurityTea
       <div className="space-y-3 text-left">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">
-            Danh bạ cư dân toàn Thôn Đoàn Kết ({filtered.length}/{residents.length} nhân khẩu)
+            Danh bạ cư dân toàn {siteName} ({filtered.length}/{residents.length} nhân khẩu)
           </span>
           <div className="relative w-full sm:w-64">
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-stone-400" />
@@ -100,13 +100,14 @@ function ViewLocationModal({ familyId, onClose }: { familyId: string; onClose: (
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [loc, tenants] = await Promise.all([
+      const [loc, tenants, homeContent] = await Promise.all([
         clientApi<HouseholdLocation>(`security-team/households/${familyId}/location`),
         clientApi<PublicTenant[]>('tenants/public'),
+        clientApi<HomeContent>('home-content'),
       ]);
       if (!cancelled) {
         setLocation(loc);
-        setTenant(tenants.find((t) => t.slug === 'doanket') || tenants[0]);
+        setTenant(tenants.find((t) => t.slug === homeContent.slug) || tenants[0]);
       }
     })();
     return () => {

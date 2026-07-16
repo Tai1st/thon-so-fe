@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type {
   AdminAccountsResponse,
+  AdminAssociationItem,
   AdminPendingRequests,
   AuditLogItem,
   HomeContent,
@@ -11,6 +12,7 @@ import type {
 } from '@/lib/types';
 import { AdminRequestsTab } from './admin-requests-tab';
 import { AdminAccountsTab } from './admin-accounts-tab';
+import { AdminGroupsTab } from './admin-groups-tab';
 import { AdminPermissionsTab } from './admin-permissions-tab';
 import { AdminHomeContentTab } from './admin-home-content-tab';
 import { AdminLogsTab } from './admin-logs-tab';
@@ -25,6 +27,7 @@ interface Me {
 
 const TABS = [
   { id: 'duyet-xoa', label: 'Duyệt Yêu Cầu', icon: 'fa-trash-can-arrow-up' },
+  { id: 'quan-ly-hoi', label: 'Quản lý Hội nhóm', icon: 'fa-folder-tree' },
   { id: 'quan-ly-tai-khoan', label: 'Quản lý Tài khoản', icon: 'fa-users-cog' },
   { id: 'phan-quyen', label: 'Cấu hình Phân quyền', icon: 'fa-user-lock' },
   { id: 'quan-ly-trang-chu', label: 'Quản lý Trang chủ', icon: 'fa-house-laptop' },
@@ -35,6 +38,7 @@ export function AdminPortal({
   me,
   pendingRequests,
   accountsRes,
+  associations,
   permissions,
   homeContent,
   logs,
@@ -42,6 +46,7 @@ export function AdminPortal({
   me: Me;
   pendingRequests: AdminPendingRequests;
   accountsRes: AdminAccountsResponse;
+  associations: AdminAssociationItem[];
   permissions: PermissionMatrix;
   homeContent: HomeContent;
   logs: AuditLogItem[];
@@ -51,6 +56,7 @@ export function AdminPortal({
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [requestsState, setRequestsState] = useState(pendingRequests);
   const [accountsState, setAccountsState] = useState(accountsRes);
+  const [associationsState, setAssociationsState] = useState(associations);
   const [permissionsState, setPermissionsState] = useState(permissions);
   const [homeContentState, setHomeContentState] = useState(homeContent);
   const [logsState, setLogsState] = useState(logs);
@@ -190,6 +196,9 @@ export function AdminPortal({
 
         <div className="space-y-6 p-6 md:col-span-10">
           {activeTab === 'duyet-xoa' && <AdminRequestsTab requests={requestsState} onRequestsChange={setRequestsState} />}
+          {activeTab === 'quan-ly-hoi' && (
+            <AdminGroupsTab associations={associationsState} onAssociationsChange={setAssociationsState} />
+          )}
           {activeTab === 'quan-ly-tai-khoan' && (
             <AdminAccountsTab accountsRes={accountsState} oldVillages={homeContentState.oldVillages} onAccountsChange={setAccountsState} />
           )}
@@ -202,6 +211,46 @@ export function AdminPortal({
           {activeTab === 'nhat-ky' && <AdminLogsTab logs={logsState} onLogsChange={setLogsState} />}
         </div>
       </div>
+
+      {/* Mobile bottom tab bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-5 border-t border-stone-200 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.06)] md:hidden">
+        <button
+          onClick={() => setActiveTab('duyet-xoa')}
+          className={`relative flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'duyet-xoa' ? 'text-primary-600' : 'text-stone-500'}`}
+        >
+          <i className="fa-solid fa-trash-can-arrow-up text-lg" />
+          <span className="text-[10px] font-semibold">Duyệt xóa</span>
+          {totalPending > 0 && (
+            <span className="absolute right-3 top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white">
+              {totalPending}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('quan-ly-hoi')}
+          className={`flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'quan-ly-hoi' ? 'text-primary-600' : 'text-stone-500'}`}
+        >
+          <i className="fa-solid fa-folder-tree text-lg" />
+          <span className="text-[10px] font-semibold">Hội nhóm</span>
+        </button>
+        <button onClick={() => setActiveTab('quan-ly-tai-khoan')} className="-mt-5 flex flex-col items-center justify-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg">
+            <i className="fa-solid fa-users-cog text-lg" />
+          </span>
+          <span className="mt-0.5 text-[9px] font-semibold text-primary-700">Tài khoản</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('quan-ly-trang-chu')}
+          className={`flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'quan-ly-trang-chu' ? 'text-primary-600' : 'text-stone-500'}`}
+        >
+          <i className="fa-solid fa-globe text-lg" />
+          <span className="text-[10px] font-semibold">Trang chủ web</span>
+        </button>
+        <button onClick={handleLogout} className="flex flex-col items-center justify-center gap-1 py-2 text-stone-500">
+          <i className="fa-solid fa-right-from-bracket text-lg" />
+          <span className="text-[10px] font-semibold">Đăng xuất</span>
+        </button>
+      </nav>
     </div>
   );
 }

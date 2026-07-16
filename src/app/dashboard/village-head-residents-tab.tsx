@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { clientApi, ClientApiError } from "@/lib/client-api";
 import { buildResidentGroups } from "@/lib/types";
 import type {
+  HomeContent,
   HouseholdLocation,
   PublicTenant,
   VillageHeadResident,
@@ -54,10 +55,12 @@ function validateForm(form: {
 export function VillageHeadResidentsTab({
   residents,
   oldVillages,
+  siteName,
   onResidentsChange,
 }: {
   residents: VillageHeadResident[];
   oldVillages: string[] | undefined;
+  siteName: string;
   onResidentsChange: (r: VillageHeadResident[]) => void;
 }) {
   const groups = buildResidentGroups(oldVillages);
@@ -140,7 +143,7 @@ export function VillageHeadResidentsTab({
       <div className="space-y-3 text-left">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">
-            Danh bạ cư dân toàn Thôn Đoàn Kết ({sortedResidents.length}/
+            Danh bạ cư dân toàn {siteName} ({sortedResidents.length}/
             {residents.length} nhân khẩu)
           </span>
           <div className="relative w-full sm:w-64">
@@ -555,15 +558,16 @@ function ViewLocationModal({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [loc, tenants] = await Promise.all([
+      const [loc, tenants, homeContent] = await Promise.all([
         clientApi<HouseholdLocation>(
           `village-head/households/${resident.familyId}/location`,
         ),
         clientApi<PublicTenant[]>("tenants/public"),
+        clientApi<HomeContent>("home-content"),
       ]);
       if (!cancelled) {
         setLocation(loc);
-        setTenant(tenants.find((t) => t.slug === "doanket") || tenants[0]);
+        setTenant(tenants.find((t) => t.slug === homeContent.slug) || tenants[0]);
       }
     })();
     return () => {

@@ -28,6 +28,7 @@ export function OverviewTab({
   homeContent,
   roster,
   onGoToTab,
+  tabIds = { family: 'family', contributions: 'contributions', incident: 'bao-antt' },
 }: {
   me: Me;
   household: HouseholdData;
@@ -35,6 +36,10 @@ export function OverviewTab({
   homeContent: HomeContent;
   roster: PublicRoster;
   onGoToTab: (tab: string) => void;
+  // Trưởng thôn/Cán bộ Hội/Tổ ANTT xem tab này trong nhóm "Hộ gia đình của
+  // tôi" của cổng riêng — id các tab đích ở đó có tiền tố "ho-..." khác với
+  // Cư dân, nên Thao Tác Nhanh cần map đúng id thay vì hardcode.
+  tabIds?: { family: string; contributions: string; incident: string };
 }) {
   const funds = household.fundObligations;
   const paidTotal = funds.filter((f) => f.status === 'Đã đóng').reduce((s, f) => s + f.amount, 0);
@@ -71,7 +76,7 @@ export function OverviewTab({
         <div className="relative z-10 flex-1 space-y-2">
           <h4 className="font-serif text-xl font-black sm:text-2xl">Chào mừng, {me.name}!</h4>
           <p className="max-w-lg text-xs text-primary-100 sm:text-sm">
-            Đây là không gian dành riêng cho cư dân thôn Đoàn Kết. Bạn có thể tra cứu thông tin, gửi yêu cầu và theo
+            Đây là không gian dành riêng cho cư dân {homeContent.siteName || 'thôn'}. Bạn có thể tra cứu thông tin, gửi yêu cầu và theo
             dõi các hoạt động của thôn một cách dễ dàng.
           </p>
         </div>
@@ -86,7 +91,7 @@ export function OverviewTab({
         <span className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Thao Tác Nhanh</span>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <button
-            onClick={() => onGoToTab('family')}
+            onClick={() => onGoToTab(tabIds.family)}
             className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-white py-4 shadow-sm transition-colors hover:border-primary-300"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
@@ -97,7 +102,7 @@ export function OverviewTab({
             </span>
           </button>
           <button
-            onClick={() => onGoToTab('family')}
+            onClick={() => onGoToTab(tabIds.family)}
             className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-white py-4 shadow-sm transition-colors hover:border-blue-300"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -108,7 +113,7 @@ export function OverviewTab({
             </span>
           </button>
           <button
-            onClick={() => onGoToTab('contributions')}
+            onClick={() => onGoToTab(tabIds.contributions)}
             className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-white py-4 shadow-sm transition-colors hover:border-amber-300"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
@@ -119,7 +124,7 @@ export function OverviewTab({
             </span>
           </button>
           <button
-            onClick={() => onGoToTab('bao-antt')}
+            onClick={() => onGoToTab(tabIds.incident)}
             className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-white py-4 shadow-sm transition-colors hover:border-purple-300"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600">

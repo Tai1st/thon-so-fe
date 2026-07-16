@@ -42,6 +42,7 @@ interface OwnHousehold {
   villageFund: VillageFund;
   incidentReports: IncidentReportItem[];
   residenceRegistrations: ResidenceRegistrationItem[];
+  tenantSlug: string | null;
 }
 
 const TABS = [
@@ -259,6 +260,7 @@ export function AssociationOfficerPortal({
                   homeContent={ownHousehold.homeContent}
                   roster={ownHousehold.roster}
                   onGoToTab={setActiveTab}
+                  tabIds={{ family: 'ho-thanh-vien', contributions: 'ho-quy-thon', incident: 'ho-bao-antt' }}
                 />
               )}
               {activeTab === 'ho-thanh-vien' && (
@@ -266,6 +268,7 @@ export function AssociationOfficerPortal({
                   household={householdState}
                   requests={requestsState}
                   tenants={ownHousehold.tenants}
+                  tenantSlug={ownHousehold.tenantSlug}
                   oldVillages={ownHousehold.homeContent.oldVillages}
                   onHouseholdChange={setHouseholdState}
                   onRequestsChange={setRequestsState}
@@ -291,6 +294,45 @@ export function AssociationOfficerPortal({
           )}
         </div>
       </div>
+
+      {/* Mobile bottom tab bar */}
+      <nav
+        className={`fixed bottom-0 left-0 right-0 z-50 grid border-t border-stone-200 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.06)] md:hidden ${ownHousehold ? 'grid-cols-5' : 'grid-cols-4'}`}
+      >
+        {ownHousehold && (
+          <button
+            onClick={() => setActiveTab('ho-tong-quan')}
+            className={`flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'ho-tong-quan' ? 'text-primary-600' : 'text-stone-500'}`}
+          >
+            <i className="fa-solid fa-house text-lg" />
+            <span className="text-[10px] font-semibold">Trang chủ</span>
+          </button>
+        )}
+        <button
+          onClick={() => setActiveTab('hoi-vien')}
+          className={`flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'hoi-vien' ? 'text-primary-600' : 'text-stone-500'}`}
+        >
+          <i className="fa-solid fa-users text-lg" />
+          <span className="text-[10px] font-semibold">Hội viên</span>
+        </button>
+        <button onClick={() => setActiveTab('quy-hoi')} className="-mt-5 flex flex-col items-center justify-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg">
+            <i className="fa-solid fa-scale-balanced text-lg" />
+          </span>
+          <span className="mt-0.5 text-[9px] font-semibold text-primary-700">Quỹ hội</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('vay-von')}
+          className={`flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'vay-von' ? 'text-primary-600' : 'text-stone-500'}`}
+        >
+          <i className="fa-solid fa-money-bill-transfer text-lg" />
+          <span className="text-[10px] font-semibold">Vay vốn</span>
+        </button>
+        <button onClick={handleLogout} className="flex flex-col items-center justify-center gap-1 py-2 text-stone-500">
+          <i className="fa-solid fa-right-from-bracket text-lg" />
+          <span className="text-[10px] font-semibold">Đăng xuất</span>
+        </button>
+      </nav>
     </div>
   );
 }
