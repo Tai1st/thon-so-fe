@@ -6,6 +6,7 @@ import type {
   HomeContent,
   HouseholdData,
   IncidentReportItem,
+  MyAssociationOverview,
   NewsItem,
   PublicRoster,
   PublicTenant,
@@ -23,6 +24,7 @@ import { FamilyTab } from './family-tab';
 import { ContributionsTab } from './contributions-tab';
 import { IncidentTab } from './incident-tab';
 import { ResidenceTab } from './residence-tab';
+import { MyAssociationTab } from './my-association-tab';
 
 interface Me {
   id: string;
@@ -30,6 +32,7 @@ interface Me {
   role: string;
   position: string;
   avatarUrl?: string;
+  residentId?: string | null;
 }
 
 interface OwnHousehold {
@@ -42,6 +45,7 @@ interface OwnHousehold {
   incidentReports: IncidentReportItem[];
   residenceRegistrations: ResidenceRegistrationItem[];
   tenantSlug: string | null;
+  myAssociation: MyAssociationOverview | null;
 }
 
 const MANAGEMENT_TABS = [
@@ -81,7 +85,9 @@ export function VillageHeadPortal({
   news: NewsItem[];
 }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<string>('toan-thon');
+  // Có hộ gia đình của mình -> vào cổng là thấy "Tổng quan Hộ gia đình"
+  // trước tiên (giống Cư dân), không phải trang quản lý toàn thôn.
+  const [activeTab, setActiveTab] = useState<string>(ownHousehold ? 'ho-tong-quan' : 'toan-thon');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [residentsState, setResidentsState] = useState(residents);
   const [fundState, setFundState] = useState(fundOverview);
@@ -89,6 +95,11 @@ export function VillageHeadPortal({
   const [requestsState, setRequestsState] = useState(ownHousehold?.requests);
   const [incidentReportsState, setIncidentReportsState] = useState(ownHousehold?.incidentReports);
   const [residenceRegistrationsState, setResidenceRegistrationsState] = useState(ownHousehold?.residenceRegistrations);
+  const [myAssociationState, setMyAssociationState] = useState(ownHousehold?.myAssociation ?? null);
+
+  const householdTabs = myAssociationState
+    ? [...HOUSEHOLD_TABS, { id: 'hoi-cua-toi', label: myAssociationState.association, icon: 'fa-people-group' }]
+    : HOUSEHOLD_TABS;
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -173,10 +184,36 @@ export function VillageHeadPortal({
             </button>
           </div>
 
+          {ownHousehold && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 px-2 pb-1">
+                <span className="h-3 w-1 rounded-full bg-primary-300" />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400">Hộ gia đình của tôi</span>
+              </div>
+              {householdTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setMobileSidebarOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-xs transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-primary-50 font-bold text-primary-700'
+                      : 'font-semibold text-stone-500 hover:bg-stone-50 hover:text-stone-900'
+                  }`}
+                >
+                  <i className={`fa-solid ${tab.icon} w-4 text-center`} />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="space-y-1">
-            <div className="flex items-center gap-2 px-2 pb-1">
+            <div className="flex items-center gap-2 border-t border-stone-100 px-2 pb-1 pt-4">
               <span className="h-3 w-1 rounded-full bg-primary-300" />
-              <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400">Quản lý thôn</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400">Tính năng Trưởng Thôn</span>
             </div>
             {MANAGEMENT_TABS.map((tab) => (
               <button
@@ -196,32 +233,6 @@ export function VillageHeadPortal({
               </button>
             ))}
           </div>
-
-          {ownHousehold && (
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 border-t border-stone-100 px-2 pb-1 pt-4">
-                <span className="h-3 w-1 rounded-full bg-primary-300" />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400">Hộ gia đình của tôi</span>
-              </div>
-              {HOUSEHOLD_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setMobileSidebarOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-xs transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-primary-50 font-bold text-primary-700'
-                      : 'font-semibold text-stone-500 hover:bg-stone-50 hover:text-stone-900'
-                  }`}
-                >
-                  <i className={`fa-solid ${tab.icon} w-4 text-center`} />
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
 
           <div className="pt-4">
             <div className="space-y-2.5 rounded-2xl border border-primary-100 bg-primary-50 p-4 text-xs">
@@ -293,6 +304,9 @@ export function VillageHeadPortal({
                   registrations={residenceRegistrationsState}
                   onRegistrationsChange={setResidenceRegistrationsState}
                 />
+              )}
+              {activeTab === 'hoi-cua-toi' && myAssociationState && (
+                <MyAssociationTab data={myAssociationState} onDataChange={setMyAssociationState} />
               )}
             </>
           )}

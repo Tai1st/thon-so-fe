@@ -20,6 +20,7 @@ import type {
   IncidentMinutesItem,
   IncidentReportItem,
   IncidentReportWithHead,
+  MyAssociationOverview,
   PermissionMatrix,
   PublicRoster,
   PublicTenant,
@@ -39,6 +40,7 @@ interface Me {
   position: string;
   assoc?: string;
   avatarUrl?: string;
+  residentId?: string | null;
 }
 
 // Dữ liệu "hộ gia đình của chính người đăng nhập" — dùng cho Cư dân, và
@@ -46,9 +48,21 @@ interface Me {
 // 1 hộ gia đình thật trong thôn (Account.residentId). Nếu tài khoản chưa
 // gắn hộ nào (vd tài khoản hệ thống thuần túy), trả về null thay vì lỗi —
 // FE ẩn hẳn nhóm tab "Hộ gia đình của tôi" trong trường hợp đó.
+// "Hội đoàn thể của tôi" — chỉ tồn tại khi Resident.association khác
+// "None". Trả null (không phải lỗi) khi tài khoản chưa tham gia hội nào,
+// để FE ẩn hẳn tab tương ứng thay vì hiện lỗi.
+async function fetchMyAssociation() {
+  try {
+    return await apiFetch<MyAssociationOverview>('/households/my-association');
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
 async function fetchOwnHouseholdData() {
   try {
-    const [household, requests, homeContent, tenants, roster, villageFund, incidentReports, residenceRegistrations, tenantSlug] =
+    const [household, requests, homeContent, tenants, roster, villageFund, incidentReports, residenceRegistrations, tenantSlug, myAssociation] =
       await Promise.all([
         apiFetch<HouseholdData>('/households/me'),
         apiFetch<RequestsMine>('/requests/mine'),
@@ -59,8 +73,20 @@ async function fetchOwnHouseholdData() {
         apiFetch<IncidentReportItem[]>('/incident-reports/mine'),
         apiFetch<ResidenceRegistrationItem[]>('/residence-registrations/mine'),
         getTenantSlug(),
+        fetchMyAssociation(),
       ]);
-    return { household, requests, homeContent, tenants, roster, villageFund, incidentReports, residenceRegistrations, tenantSlug };
+    return {
+      household,
+      requests,
+      homeContent,
+      tenants,
+      roster,
+      villageFund,
+      incidentReports,
+      residenceRegistrations,
+      tenantSlug,
+      myAssociation,
+    };
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return null;
     throw err;
@@ -214,6 +240,7 @@ export default async function DashboardPage() {
       villageFund={ownHousehold.villageFund}
       incidentReports={ownHousehold.incidentReports}
       residenceRegistrations={ownHousehold.residenceRegistrations}
+      myAssociation={ownHousehold.myAssociation}
     />
   );
 }

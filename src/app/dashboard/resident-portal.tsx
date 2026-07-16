@@ -6,6 +6,7 @@ import type {
   HomeContent,
   HouseholdData,
   IncidentReportItem,
+  MyAssociationOverview,
   PublicRoster,
   PublicTenant,
   RequestsMine,
@@ -17,6 +18,7 @@ import { FamilyTab } from './family-tab';
 import { ContributionsTab } from './contributions-tab';
 import { IncidentTab } from './incident-tab';
 import { ResidenceTab } from './residence-tab';
+import { MyAssociationTab } from './my-association-tab';
 
 interface Me {
   id: string;
@@ -25,6 +27,7 @@ interface Me {
   position: string;
   assoc?: string;
   avatarUrl?: string;
+  residentId?: string | null;
 }
 
 const TABS = [
@@ -46,6 +49,7 @@ export function ResidentPortal({
   villageFund,
   incidentReports,
   residenceRegistrations,
+  myAssociation,
 }: {
   me: Me;
   household: HouseholdData;
@@ -57,6 +61,7 @@ export function ResidentPortal({
   villageFund: VillageFund;
   incidentReports: IncidentReportItem[];
   residenceRegistrations: ResidenceRegistrationItem[];
+  myAssociation: MyAssociationOverview | null;
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -65,6 +70,11 @@ export function ResidentPortal({
   const [requestsState, setRequestsState] = useState(requests);
   const [incidentReportsState, setIncidentReportsState] = useState(incidentReports);
   const [residenceRegistrationsState, setResidenceRegistrationsState] = useState(residenceRegistrations);
+  const [myAssociationState, setMyAssociationState] = useState(myAssociation);
+
+  const tabs = myAssociationState
+    ? [...TABS, { id: 'hoi-cua-toi', label: myAssociationState.association, icon: 'fa-people-group' }]
+    : TABS;
 
   const pendingCount = requestsState.memberEditRequests.filter((r) => r.status === 'pending').length +
     requestsState.newMemberRequests.filter((r) => r.status === 'pending').length;
@@ -124,6 +134,9 @@ export function ResidentPortal({
       return (
         <ResidenceTab registrations={residenceRegistrationsState} onRegistrationsChange={setResidenceRegistrationsState} />
       );
+    }
+    if (activeTab === 'hoi-cua-toi' && myAssociationState) {
+      return <MyAssociationTab data={myAssociationState} onDataChange={setMyAssociationState} />;
     }
     return null;
   }
@@ -228,7 +241,7 @@ export function ResidentPortal({
           </div>
 
           <div className="space-y-1">
-            {TABS.map((tab) => (
+            {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => {

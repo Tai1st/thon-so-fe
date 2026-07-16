@@ -86,6 +86,7 @@ export interface HouseholdMember {
   group: string;
   permanentAddress: string;
   temporaryAddress: string;
+  association: string;
 }
 
 // Fallback khi tenant chưa có HomeContent.oldVillages (tenant mới, Admin
@@ -257,6 +258,39 @@ export interface VillageFund {
   unpaidHouseholds: number;
   totalHouseholds: number;
   bankInfo: { bankName: string; accountNumber: string; accountHolder: string };
+}
+
+export interface MemberFundEntry {
+  id: string;
+  name: string;
+  period: string;
+  amount: number;
+  status: 'Đã đóng' | 'Chưa đóng' | 'Chờ duyệt';
+  date: string;
+  memo: string;
+}
+
+export interface AssocThuItem {
+  member: string | null;
+  desc: string;
+  amount: number;
+}
+
+export interface AssocChiItem {
+  desc: string;
+  date: string;
+  amount: number;
+}
+
+export interface MyAssociationOverview {
+  association: string;
+  leaderName: string | null;
+  thuTotal: number;
+  chiTotal: number;
+  bankInfo: { bankName: string; accountNumber: string; accountHolder: string };
+  myFees: MemberFundEntry[];
+  thuItems: AssocThuItem[];
+  chiItems: AssocChiItem[];
 }
 
 export interface IncidentReportItem {
