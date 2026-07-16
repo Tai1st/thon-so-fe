@@ -9,6 +9,8 @@ export function CommunesDashboard({ initialCommunes }: { initialCommunes: Commun
   const router = useRouter();
   const [communes, setCommunes] = useState(initialCommunes);
   const [showImport, setShowImport] = useState(false);
+  const [deletingCommune, setDeletingCommune] = useState<CommuneListItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   function showNotice(type: 'success' | 'error', text: string) {
@@ -26,6 +28,23 @@ export function CommunesDashboard({ initialCommunes }: { initialCommunes: Commun
     await fetch('/api/superadmin/auth/logout', { method: 'POST' });
     router.push('/superadmin/login');
     router.refresh();
+  }
+
+  async function confirmDeleteCommune() {
+    if (!deletingCommune) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/superadmin-backend/superadmin/communes/${deletingCommune._id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Không thể xóa xã này.');
+      setDeletingCommune(null);
+      await refresh();
+      showNotice('success', `Đã xóa xã "${deletingCommune.name}" cùng mọi tenant thuộc xã đó.`);
+    } catch (err) {
+      showNotice('error', err instanceof Error ? err.message : 'Không thể xóa xã này.');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -92,12 +111,20 @@ export function CommunesDashboard({ initialCommunes }: { initialCommunes: Commun
                     {c.claimedVillages} / {c.totalVillages}
                   </td>
                   <td className="p-4 text-right">
-                    <Link
-                      href={`/superadmin/communes/${c._id}`}
-                      className="rounded bg-emerald-950/50 px-2.5 py-1 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-600 hover:text-white"
-                    >
-                      <i className="fa-solid fa-map mr-1" /> Xem bản đồ
-                    </Link>
+                    <div className="flex justify-end gap-2">
+                      <Link
+                        href={`/superadmin/communes/${c._id}`}
+                        className="rounded bg-emerald-950/50 px-2.5 py-1 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-600 hover:text-white"
+                      >
+                        <i className="fa-solid fa-map mr-1" /> Xem bản đồ
+                      </Link>
+                      <button
+                        onClick={() => setDeletingCommune(c)}
+                        className="rounded bg-red-950/50 px-2.5 py-1 text-[11px] font-semibold text-red-400 transition-all hover:bg-red-600 hover:text-white"
+                      >
+                        <i className="fa-solid fa-trash mr-1" /> Xóa
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -122,6 +149,52 @@ export function CommunesDashboard({ initialCommunes }: { initialCommunes: Commun
             showNotice('success', 'Đã nhập xã mới thành công.');
           }}
         />
+      )}
+
+      {deletingCommune && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-sm space-y-4 rounded-3xl border border-stone-800 bg-stone-900 p-6 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif text-base font-bold uppercase tracking-wider text-white">Xác nhận xóa xã</h3>
+              <button
+                onClick={() => setDeletingCommune(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-700 bg-stone-800 text-stone-400 hover:border-red-500 hover:text-red-400"
+              >
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <p className="text-xs text-stone-400">
+              Bạn có chắc muốn xóa xã &quot;{deletingCommune.name}&quot;?{' '}
+              {deletingCommune.claimedVillages > 0 ? (
+                <>
+                  <strong className="text-red-400">
+                    {deletingCommune.claimedVillages} tenant đã tạo từ xã này sẽ bị xóa vĩnh viễn
+                  </strong>{' '}
+                  cùng toàn bộ tài khoản, nhân khẩu và dữ liệu liên quan.
+                </>
+              ) : (
+                'Xã này chưa có tenant nào.'
+              )}{' '}
+              Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeletingCommune(null)}
+                disabled={deleting}
+                className="w-full rounded-xl border border-stone-700 bg-stone-800 py-2.5 text-xs font-bold uppercase text-stone-300 hover:bg-stone-700 disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmDeleteCommune}
+                disabled={deleting}
+                className="w-full rounded-xl bg-red-600 py-2.5 text-xs font-bold uppercase text-white hover:bg-red-500 disabled:opacity-50"
+              >
+                {deleting ? 'Đang xóa...' : 'Xóa'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
