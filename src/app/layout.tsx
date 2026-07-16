@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Montserrat, Playfair_Display } from 'next/font/google';
 import { getTenantSlug } from '@/lib/tenant';
 import { apiFetch } from '@/lib/api';
-import type { PublicTenant } from '@/lib/types';
+import type { HomeContent, PublicTenant } from '@/lib/types';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import 'leaflet/dist/leaflet.css';
 import './globals.css';
@@ -34,12 +34,16 @@ export async function generateMetadata(): Promise<Metadata> {
   if (!slug) return DEFAULT_METADATA;
 
   try {
-    const tenants = await apiFetch<PublicTenant[]>('/tenants/public', { auth: false });
+    const [tenants, homeContent] = await Promise.all([
+      apiFetch<PublicTenant[]>('/tenants/public', { auth: false }),
+      apiFetch<HomeContent>('/home-content', { auth: false }),
+    ]);
     const tenant = tenants.find((t) => t.slug === slug);
     if (!tenant) return DEFAULT_METADATA;
     return {
       title: `Cổng Thông Tin Điện Tử ${tenant.name}`,
       description: `Cổng thông tin điện tử ${tenant.name}`,
+      icons: homeContent.logoUrl ? { icon: homeContent.logoUrl } : undefined,
     };
   } catch {
     return DEFAULT_METADATA;
