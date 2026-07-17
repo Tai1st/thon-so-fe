@@ -22,6 +22,21 @@ body {
   font-family: var(--font-sans), sans-serif;
 }
 
+/* iOS Safari tự động zoom vào khi tap 1 input có font-size < 16px — không
+   sửa bằng "user-scalable=no" (chặn zoom hẳn, kém khả năng tiếp cận, và
+   Safari hiện đại phần lớn phớt lờ cờ này). Đặt sàn 16px CHỈ ở khung nhìn
+   mobile để không đổi giao diện desktop. Đặt NGOÀI mọi @layer để chắc
+   chắn thắng các utility text-xs/text-sm của Tailwind theo cascade layer
+   (unlayered CSS luôn ưu tiên hơn CSS trong @layer, bất kể thứ tự khai
+   báo hay độ đặc hiệu selector). */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* Ẩn thanh cuộn ngang của carousel hero mobile + gallery (vẫn cuộn được
    bằng vuốt/snap, chỉ ẩn thanh cuộn), khớp .no-scrollbar trong style.css
    bản mẫu gốc. */

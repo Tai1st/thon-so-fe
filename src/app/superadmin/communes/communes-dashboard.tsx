@@ -48,7 +48,7 @@ export function CommunesDashboard({ initialCommunes }: { initialCommunes: Commun
   }
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100">
+    <div className="min-h-dvh bg-stone-950 text-stone-100">
       <div className="flex items-center justify-between border-b border-stone-800 bg-stone-900 p-6">
         <div>
           <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-emerald-500">

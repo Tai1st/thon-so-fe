@@ -85,7 +85,7 @@ export function VillageHomePage({
   }
 
   return (
-    <div className="flex min-h-screen flex-col pb-16 lg:pb-0">
+    <div className="flex min-h-dvh flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
       {/* ===== MOBILE HEADER (< lg) ===== */}
       <header className="sticky top-0 z-40 border-b border-stone-200 bg-white lg:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
@@ -688,7 +688,7 @@ export function VillageHomePage({
       </main>
 
       {/* ===== MOBILE BOTTOM TAB BAR (< lg) ===== */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-5 border-t border-stone-200 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.06)] lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-5 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_10px_rgba(0,0,0,0.06)] lg:hidden">
         <a href="#home" className="flex flex-col items-center justify-center gap-1 py-2 text-primary-600">
           <i className="fa-solid fa-house text-lg"></i>
           <span className="text-[10px] font-semibold">Trang chủ</span>

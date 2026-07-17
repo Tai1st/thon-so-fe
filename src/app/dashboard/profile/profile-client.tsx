@@ -89,7 +89,7 @@ export function ProfileClient({ me }: { me: Me }) {
     .toUpperCase();
 
   return (
-    <div className="mx-auto min-h-screen max-w-2xl space-y-6 bg-stone-50 p-4 sm:p-8">
+    <div className="mx-auto min-h-dvh max-w-2xl space-y-6 bg-stone-50 p-4 sm:p-8">
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.back()}

@@ -33,7 +33,7 @@ export function CreateTenantFromVillageForm({
 
   if (village.claimed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-stone-950 p-6 text-stone-100">
+      <div className="flex min-h-dvh items-center justify-center bg-stone-950 p-6 text-stone-100">
         <div className="max-w-md space-y-4 text-center">
           <p className="text-sm text-stone-400">Thôn &quot;{village.name}&quot; đã được gán cho 1 tenant rồi.</p>
           <Link href={`/superadmin/communes/${communeId}`} className="text-emerald-400 hover:underline">
@@ -80,7 +80,7 @@ export function CreateTenantFromVillageForm({
   }
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100">
+    <div className="min-h-dvh bg-stone-950 text-stone-100">
       <div className="flex items-center justify-between border-b border-stone-800 bg-stone-900 p-6">
         <div>
           <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-emerald-500">

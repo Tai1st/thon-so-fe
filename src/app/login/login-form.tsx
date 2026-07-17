@@ -34,7 +34,7 @@ export function LoginForm({ siteName, logoUrl }: { siteName: string; logoUrl: st
   }
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-dvh bg-stone-50">
       <div className="fixed left-0 top-0 z-50 w-full p-4 sm:p-6">
         <Link
           href="/"
@@ -44,7 +44,7 @@ export function LoginForm({ siteName, logoUrl }: { siteName: string; logoUrl: st
         </Link>
       </div>
 
-      <section className="flex min-h-screen items-center justify-center px-4 py-28">
+      <section className="flex min-h-dvh items-center justify-center px-4 py-28">
         <div className="w-full max-w-lg space-y-4">
           <div className="flex flex-col items-center gap-3 text-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}

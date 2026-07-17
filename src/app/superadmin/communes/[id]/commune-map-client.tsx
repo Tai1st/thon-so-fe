@@ -59,7 +59,7 @@ export function CommuneMapClient({
   }
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-dvh bg-stone-50">
       {/* Thanh superadmin — đăng xuất/điều hướng, không phải header thương hiệu công khai */}
       <div className="flex items-center justify-between border-b border-stone-800 bg-stone-900 p-4 text-stone-100">
         <div>

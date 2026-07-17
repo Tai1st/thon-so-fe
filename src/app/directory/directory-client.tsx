@@ -23,7 +23,7 @@ export function DirectoryClient({
 }) {
   if (communes.length === 0) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-stone-50 px-4 text-center">
+      <main className="flex min-h-dvh items-center justify-center bg-stone-50 px-4 text-center">
         <div>
           <h1 className="text-lg font-bold text-stone-900">Chưa có xã nào được thiết lập</h1>
           <p className="mt-2 max-w-sm text-sm text-stone-500">
@@ -42,7 +42,7 @@ export function DirectoryClient({
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-dvh"
       style={{
         background:
           'radial-gradient(circle at 18% 12%, rgba(22,163,74,.10), transparent 30%), radial-gradient(circle at 82% 6%, rgba(14,165,233,.09), transparent 28%), linear-gradient(180deg, #f5fbf7 0%, #eef8f1 42%, #e8f5ef 100%)',

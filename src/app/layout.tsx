@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Montserrat, Playfair_Display } from 'next/font/google';
 import { getTenantSlug } from '@/lib/tenant';
 import { apiFetch } from '@/lib/api';
@@ -20,6 +20,19 @@ const playfairDisplay = Playfair_Display({
   subsets: ['latin', 'vietnamese'],
   weight: ['600', '700', '800'],
 });
+
+// viewportFit "cover" mở khóa env(safe-area-inset-*) (tai thỏ/vạch home).
+// interactiveWidget "resizes-content" là cơ chế CHUẨN của WebKit để layout
+// viewport tự co lại đúng bằng bàn phím ảo khi hiện lên — nhờ vậy các đơn
+// vị dvh (xem globals.css/các portal) luôn phản ánh đúng chiều cao đang
+// thấy được, không cần đo window.innerHeight bằng JS (cách làm cũ, dễ vỡ,
+// để lại khoảng trống khi đóng bàn phím vì giá trị đo bị lệch nhịp).
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  interactiveWidget: 'resizes-content',
+};
 
 const DEFAULT_METADATA: Metadata = {
   title: 'Cổng Thông Tin Điện Tử - Tra cứu Thôn/Buôn',

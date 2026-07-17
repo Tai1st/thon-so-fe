@@ -82,7 +82,7 @@ export function AdminPortal({
   const logoUrl = homeContentState.logoUrl || '/logo.png';
 
   return (
-    <div className="flex min-h-screen flex-col bg-stone-50 pb-16 md:pb-0">
+    <div className="flex min-h-dvh flex-col bg-stone-50 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 bg-white p-4 sm:p-6">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <button
@@ -135,7 +135,7 @@ export function AdminPortal({
           <div onClick={() => setMobileSidebarOpen(false)} className="fixed inset-0 z-30 bg-black/60 md:hidden" />
         )}
         <div
-          className={`fixed inset-y-0 left-0 z-40 flex w-1/2 max-w-xs -translate-x-full flex-col space-y-5 overflow-y-auto border-r border-stone-200 bg-white p-5 shadow-xl transition-transform duration-300 ease-out md:sticky md:top-0 md:z-auto md:col-span-2 md:max-h-screen md:w-auto md:max-w-none md:translate-x-0 md:self-start md:border-r-0 md:bg-stone-50 md:shadow-none md:transition-none ${mobileSidebarOpen ? 'translate-x-0' : ''}`}
+          className={`fixed inset-y-0 left-0 z-40 flex w-1/2 max-w-xs -translate-x-full flex-col space-y-5 overflow-y-auto border-r border-stone-200 bg-white p-5 shadow-xl transition-transform duration-300 ease-out md:sticky md:top-0 md:z-auto md:col-span-2 md:max-h-dvh md:w-auto md:max-w-none md:translate-x-0 md:self-start md:border-r-0 md:bg-stone-50 md:shadow-none md:transition-none ${mobileSidebarOpen ? 'translate-x-0' : ''}`}
         >
           <div className="mb-2 flex items-center justify-between border-b border-stone-100 pb-4 md:hidden">
             <div className="flex items-center gap-2">
@@ -213,7 +213,7 @@ export function AdminPortal({
       </div>
 
       {/* Mobile bottom tab bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-5 border-t border-stone-200 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.06)] md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-5 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_10px_rgba(0,0,0,0.06)] md:hidden">
         <button
           onClick={() => setActiveTab('duyet-xoa')}
           className={`relative flex flex-col items-center justify-center gap-1 py-2 ${activeTab === 'duyet-xoa' ? 'text-primary-600' : 'text-stone-500'}`}
