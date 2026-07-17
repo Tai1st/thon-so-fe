@@ -903,9 +903,10 @@ function AddResidentModal({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">
-                Căn Cước (CCCD)
+                Căn Cước (CCCD) <span className="text-red-500">*</span>
               </label>
               <input
+                required
                 value={form.cccd}
                 onChange={(e) =>
                   setForm({
@@ -913,12 +914,12 @@ function AddResidentModal({
                     cccd: e.target.value.replace(/\D/g, "").slice(0, 12),
                   })
                 }
-                placeholder="12 số — để trống nếu chưa có"
+                placeholder="Bắt buộc — 12 số"
                 className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
               />
               <p className="text-[10px] text-stone-400">
-                Có CCCD thì hệ thống tự cấp tài khoản đăng nhập (mật khẩu mặc
-                định theo thôn).
+                Bắt buộc — hệ thống tự cấp tài khoản đăng nhập theo CCCD (mật
+                khẩu mặc định theo thôn).
               </p>
             </div>
             <div className="space-y-1.5">
@@ -1318,9 +1319,10 @@ function EditResidentInfoModal({
 
             <div className="space-y-1.5">
               <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">
-                Căn Cước (CCCD)
+                Căn Cước (CCCD) <span className="text-red-500">*</span>
               </label>
               <input
+                required
                 value={form.cccd}
                 onChange={(e) =>
                   setForm({
@@ -1328,7 +1330,7 @@ function EditResidentInfoModal({
                     cccd: e.target.value.replace(/\D/g, "").slice(0, 12),
                   })
                 }
-                placeholder="12 số — để trống nếu chưa có"
+                placeholder="Bắt buộc — 12 số"
                 className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
               />
             </div>
