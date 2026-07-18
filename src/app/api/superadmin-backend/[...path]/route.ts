@@ -15,12 +15,21 @@ async function forward(request: NextRequest, path: string[]) {
     return NextResponse.json({ message: 'Chưa đăng nhập superadmin.' }, { status: 401 });
   }
 
-  const body = request.method === 'GET' ? undefined : await request.text();
+  // multipart/form-data (upload file) phải forward nguyên stream + đúng
+  // Content-Type gốc (có boundary) — xem ghi chú tương tự trong
+  // /api/backend/[...path]/route.ts.
+  const contentType = request.headers.get('content-type') || '';
+  const isMultipart = contentType.startsWith('multipart/form-data');
+
   const beRes = await fetch(`${BASE_URL}/${path.join('/')}`, {
     method: request.method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body,
-  });
+    headers: {
+      'Content-Type': isMultipart ? contentType : 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: request.method === 'GET' ? undefined : isMultipart ? request.body : await request.text(),
+    ...(isMultipart && request.method !== 'GET' ? { duplex: 'half' } : {}),
+  } as RequestInit);
   const data = await beRes.json().catch(() => ({}));
   return NextResponse.json(data, { status: beRes.status });
 }

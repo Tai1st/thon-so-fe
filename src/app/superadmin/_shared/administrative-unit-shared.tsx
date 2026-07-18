@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ClientApiError } from '@/lib/client-api';
 import { ADMINISTRATIVE_UNIT_CATEGORIES } from '@/lib/types';
 import type { AdministrativeUnitCategory, SuperAdminAdministrativeUnit } from '@/lib/types';
+import { ImageUrlInput } from '@/components/image-url-input';
 
 // Xem ghi chú trong superadmin-dashboard.tsx — proxy riêng
 // /api/superadmin-backend/* (cookie superadmin_session, không phải session
@@ -167,14 +168,13 @@ export function UnitFormModal({
               />
             </FormField>
           </div>
-          <FormField label="URL Logo (tùy chọn)">
-            <input
-              value={form.logoUrl}
-              onChange={(e) => setForm({ ...form, logoUrl: e.target.value })}
-              placeholder="https://..."
-              className="w-full rounded-xl border border-stone-700 bg-stone-800 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500"
-            />
-          </FormField>
+          <ImageUrlInput
+            label="Logo (tùy chọn)"
+            value={form.logoUrl}
+            onChange={(v) => setForm({ ...form, logoUrl: v })}
+            uploadUrl="/api/superadmin-backend/uploads"
+            variant="dark"
+          />
           <FormField label="Link Google Maps (tùy chọn)">
             <input
               value={form.mapsUrl}

@@ -21,16 +21,24 @@ async function forward(request: NextRequest, path: string[]) {
     return NextResponse.json({ message: 'Chưa đăng nhập.' }, { status: 401 });
   }
 
-  const body = request.method === 'GET' ? undefined : await request.text();
+  // multipart/form-data (upload file) phải forward NGUYÊN body dạng stream
+  // + giữ đúng Content-Type gốc (có boundary) — request.text() sẽ làm hỏng
+  // dữ liệu nhị phân của file, còn ép cứng "application/json" sẽ khiến BE
+  // không parse được multipart nữa.
+  const contentType = request.headers.get('content-type') || '';
+  const isMultipart = contentType.startsWith('multipart/form-data');
+
   const beRes = await fetch(`${BASE_URL}/${path.join('/')}`, {
     method: request.method,
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': isMultipart ? contentType : 'application/json',
       'x-tenant-slug': slug,
       Authorization: `Bearer ${token}`,
     },
-    body,
-  });
+    body: request.method === 'GET' ? undefined : isMultipart ? request.body : await request.text(),
+    // Bắt buộc khi body là ReadableStream (undici yêu cầu duplex: 'half').
+    ...(isMultipart && request.method !== 'GET' ? { duplex: 'half' } : {}),
+  } as RequestInit);
   const data = await beRes.json().catch(() => ({}));
   return NextResponse.json(data, { status: beRes.status });
 }

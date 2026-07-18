@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { clientApi, ClientApiError } from '@/lib/client-api';
+import { ImageUrlInput } from '@/components/image-url-input';
 import type { Me } from './page';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -33,13 +34,6 @@ export function ProfileClient({ me }: { me: Me }) {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordNotice, setPasswordNotice] = useState('');
   const [passwordError, setPasswordError] = useState('');
-
-  function handleAvatarPaste(e: React.ClipboardEvent<HTMLInputElement>) {
-    const text = e.clipboardData.getData('text');
-    if (!text) return;
-    e.preventDefault();
-    setAvatarUrl(extractUrl(text));
-  }
 
   async function saveAvatar() {
     setAvatarNotice('');
@@ -119,16 +113,8 @@ export function ProfileClient({ me }: { me: Me }) {
               {initials || '?'}
             </div>
           )}
-          <div className="flex-1 space-y-1.5">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">URL ảnh đại diện</label>
-            <input
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              onPaste={handleAvatarPaste}
-              onBlur={() => setAvatarUrl((v) => extractUrl(v))}
-              placeholder="https://..."
-              className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 outline-none focus:border-primary-500"
-            />
+          <div className="flex-1">
+            <ImageUrlInput label="URL ảnh đại diện" value={avatarUrl} onChange={(v) => setAvatarUrl(extractUrl(v))} />
           </div>
         </div>
         {avatarNotice && <p className="text-[11px] font-semibold text-emerald-600">{avatarNotice}</p>}

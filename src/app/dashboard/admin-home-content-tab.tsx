@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { clientApi, ClientApiError } from '@/lib/client-api';
 import type { GalleryItem, HomeContent, Product, ScheduleItem, Stat } from '@/lib/types';
 import { extractImageUrl } from '@/lib/extract-image-url';
+import { ImageUrlInput } from '@/components/image-url-input';
 import { ConfirmDeleteModal } from './confirm-delete-modal';
 import { NewsSection } from './news-section';
 
@@ -94,8 +95,8 @@ export function AdminHomeContentTab({
         <span className="block text-[10px] font-bold uppercase tracking-wider text-stone-500">Thương hiệu trang chủ</span>
         <form onSubmit={saveBranding} className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
           <TextInput name="siteName" label="Tên thôn hiển thị" defaultValue={homeContent.siteName} />
-          <TextInput name="logoUrl" label="URL Logo (để trống dùng ảnh mặc định)" defaultValue={homeContent.logoUrl} />
-          <TextInput name="heroImage" label="URL ảnh nền Hero (để trống dùng ảnh mặc định)" defaultValue={homeContent.heroImage} className="sm:col-span-2" />
+          <ImageUrlInput name="logoUrl" label="Logo (để trống dùng ảnh mặc định)" defaultValue={homeContent.logoUrl} />
+          <ImageUrlInput name="heroImage" label="Ảnh nền Hero (để trống dùng ảnh mặc định)" defaultValue={homeContent.heroImage} className="sm:col-span-2" />
           <button type="submit" className="rounded-lg bg-primary-600 py-2 text-xs font-bold uppercase text-white hover:bg-primary-500 sm:col-span-2">
             Lưu thương hiệu
           </button>
@@ -322,7 +323,7 @@ function ProductsSection({ products, onChange, showNotice }: { products: Product
                 <TextInput name="name" label="Tên sản phẩm" defaultValue={editing !== 'new' ? editing.name : ''} />
                 <TextInput name="badge" label="Nhãn (VD: Đặc sản)" defaultValue={editing !== 'new' ? editing.badge : ''} />
               </div>
-              <TextInput name="image" label="URL ảnh" defaultValue={editing !== 'new' ? editing.image : ''} />
+              <ImageUrlInput name="image" label="Ảnh sản phẩm" defaultValue={editing !== 'new' ? editing.image : ''} />
               <TextInput name="desc" label="Mô tả" defaultValue={editing !== 'new' ? editing.desc : ''} />
               <div className="grid grid-cols-2 gap-2">
                 <TextInput name="footerLabel" label="Nhãn footer (VD: Giá)" defaultValue={editing !== 'new' ? editing.footerLabel : ''} />
@@ -635,7 +636,7 @@ function GallerySection({ gallery, onChange, showNotice }: { gallery: GalleryIte
       </div>
       {adding && (
         <form onSubmit={submit} className="grid grid-cols-1 gap-2 rounded-xl border border-stone-200 bg-stone-50 p-4 sm:grid-cols-3">
-          <TextInput name="image" label="URL ảnh" className="sm:col-span-2" />
+          <ImageUrlInput name="image" label="Ảnh" className="sm:col-span-2" />
           <TextInput name="caption" label="Chú thích" />
           <div className="flex gap-2 sm:col-span-3">
             <button type="submit" className="rounded-lg bg-primary-600 px-4 py-2 text-xs font-bold uppercase text-white hover:bg-primary-500">
@@ -681,7 +682,7 @@ function GallerySection({ gallery, onChange, showNotice }: { gallery: GalleryIte
               </button>
             </div>
             <form onSubmit={submitEdit} className="space-y-2">
-              <TextInput name="image" label="URL ảnh" defaultValue={editing.image} />
+              <ImageUrlInput name="image" label="Ảnh" defaultValue={editing.image} />
               <TextInput name="caption" label="Chú thích" defaultValue={editing.caption} />
               <button type="submit" className="w-full rounded-xl bg-primary-600 py-2.5 text-xs font-bold uppercase text-white hover:bg-primary-500">
                 Lưu
