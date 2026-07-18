@@ -139,7 +139,7 @@ export function VillageHomePage({
                 setMobileMenuOpen(false);
                 goToDirectory();
               }}
-              className="block w-full rounded-lg px-3 py-2.5 text-left transition-all hover:bg-primary-700"
+              className="block w-full rounded-lg px-3 py-2.5 text-left uppercase transition-all hover:bg-primary-700"
             >
               Tra cứu Thôn/Buôn
             </button>
