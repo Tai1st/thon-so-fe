@@ -303,6 +303,7 @@ export interface IncidentReportItem {
   lng: number | null;
   status: 'Mới' | 'Đã tiếp nhận' | 'Đã xử lý';
   time: string;
+  imageUrl: string;
 }
 
 export interface DeleteRequestItem {
@@ -454,6 +455,8 @@ export interface ResidenceRegistrationItem {
   hostName: string;
   guestName: string;
   guestCccd: string;
+  guestCccdFrontUrl: string;
+  guestCccdBackUrl: string;
   relationship: string;
   reason: string;
   fromDate: string;
@@ -467,13 +470,60 @@ export interface IncidentReportWithHead extends IncidentReportItem {
   headName: string;
 }
 
+export interface AnttRepresentative {
+  name: string;
+  position: string;
+}
+
+export interface MinutesReporter {
+  name: string;
+  dob: string;
+  cccd: string;
+  address: string;
+  phone: string;
+}
+
+export interface OtherInvolvedPerson {
+  name: string;
+  address: string;
+  role: string;
+}
+
+export interface MinutesDamage {
+  people: string;
+  property: string;
+  other: string;
+}
+
+export interface MinutesOpinions {
+  reporter: string;
+  involved: string;
+  witness: string;
+}
+
 export interface IncidentMinutesItem {
   _id: string;
   relatedReportId: string | null;
+  code: string;
   title: string;
-  location: string;
-  involvedPeople: string;
+  recordTime: string;
+  recordLocation: string;
+  anttRepresentatives: AnttRepresentative[];
+  reporter: MinutesReporter;
+  involvedPeople: OtherInvolvedPerson[];
+  incidentTime: string;
+  incidentLocation: string;
+  incidentTypes: string[];
+  incidentTypeOther: string;
   content: string;
+  damage: MinutesDamage;
+  verificationResult: string;
+  verificationNote: string;
+  opinions: MinutesOpinions;
+  recommendations: string[];
+  recommendationOther: string;
+  copies: number;
+  imageUrls: string[];
   createdBy: string;
   time: string;
 }

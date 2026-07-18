@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { clientApi, ClientApiError } from '@/lib/client-api';
+import { ImageUrlInput } from '@/components/image-url-input';
 import type { IncidentReportItem } from '@/lib/types';
 
 const STATUS_BADGE: Record<IncidentReportItem['status'], { label: string; className: string; icon: string }> = {
@@ -19,6 +20,7 @@ export function IncidentTab({
 }) {
   const [content, setContent] = useState('');
   const [locationText, setLocationText] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsBusy, setGpsBusy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -58,12 +60,19 @@ export function IncidentTab({
     try {
       await clientApi('incident-reports', {
         method: 'POST',
-        body: { content: content.trim(), locationText: locationText.trim(), lat: coords?.lat, lng: coords?.lng },
+        body: {
+          content: content.trim(),
+          locationText: locationText.trim(),
+          lat: coords?.lat,
+          lng: coords?.lng,
+          imageUrl: imageUrl.trim(),
+        },
       });
       const res = await clientApi<IncidentReportItem[]>('incident-reports/mine');
       onReportsChange(res);
       setContent('');
       setLocationText('');
+      setImageUrl('');
       setCoords(null);
       showNotice('success', 'Tổ An ninh trật tự đã nhận được tin báo của bạn.');
     } catch (err) {
@@ -116,6 +125,7 @@ export function IncidentTab({
             className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-800 outline-none transition-colors focus:border-primary-500"
           />
         </div>
+        <ImageUrlInput label="Ảnh hiện trường (nếu có)" value={imageUrl} onChange={setImageUrl} />
         <div className="flex items-center gap-2 text-xs">
           <button
             type="button"
@@ -148,6 +158,7 @@ export function IncidentTab({
               <thead>
                 <tr className="border-b border-stone-200 bg-stone-50 text-stone-500">
                   <th className="min-w-60 whitespace-nowrap bg-stone-50 p-4 font-semibold">Nội dung / Vị trí</th>
+                  <th className="min-w-16 whitespace-nowrap p-4 font-semibold">Ảnh</th>
                   <th className="min-w-35 whitespace-nowrap p-4 font-semibold">Thời gian gửi</th>
                   <th className="min-w-30 whitespace-nowrap p-4 text-center font-semibold">Trạng thái</th>
                 </tr>
@@ -155,7 +166,7 @@ export function IncidentTab({
               <tbody className="divide-y divide-stone-200/40 text-stone-600">
                 {reports.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="p-4 text-center text-stone-400">
+                    <td colSpan={4} className="p-4 text-center text-stone-400">
                       Bạn chưa gửi tin báo nào.
                     </td>
                   </tr>
@@ -169,6 +180,16 @@ export function IncidentTab({
                           <span className="font-mono text-[10px] text-stone-400">
                             {r.locationText || (r.lat != null ? `${r.lat.toFixed(5)}, ${r.lng?.toFixed(5)}` : 'Không kèm vị trí')}
                           </span>
+                        </td>
+                        <td className="p-4">
+                          {r.imageUrl ? (
+                            <a href={r.imageUrl} target="_blank" rel="noopener">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={r.imageUrl} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                            </a>
+                          ) : (
+                            <span className="text-stone-300">—</span>
+                          )}
                         </td>
                         <td className="whitespace-nowrap p-4 font-mono text-[11px] text-stone-500">{r.time}</td>
                         <td className="whitespace-nowrap p-4 text-center">

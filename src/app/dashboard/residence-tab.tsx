@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { clientApi, ClientApiError } from '@/lib/client-api';
+import { ImageUrlInput } from '@/components/image-url-input';
 import type { ResidenceRegistrationItem } from '@/lib/types';
 
 const STATUS_BADGE: Record<ResidenceRegistrationItem['status'], { label: string; className: string; icon: string }> = {
@@ -10,7 +11,16 @@ const STATUS_BADGE: Record<ResidenceRegistrationItem['status'], { label: string;
   'Chờ duyệt': { label: 'Chờ duyệt', className: 'bg-amber-50 text-amber-600', icon: 'fa-clock' },
 };
 
-const EMPTY_FORM = { guestName: '', guestCccd: '', relationship: '', reason: '', fromDate: '', toDate: '' };
+const EMPTY_FORM = {
+  guestName: '',
+  guestCccd: '',
+  guestCccdFrontUrl: '',
+  guestCccdBackUrl: '',
+  relationship: '',
+  reason: '',
+  fromDate: '',
+  toDate: '',
+};
 
 export function ResidenceTab({
   registrations,
@@ -81,6 +91,16 @@ export function ResidenceTab({
           onChange={(v) => setForm({ ...form, relationship: v })}
         />
         <Field label="Lý do lưu trú" value={form.reason} onChange={(v) => setForm({ ...form, reason: v })} />
+        <ImageUrlInput
+          label="Ảnh Căn Cước mặt trước"
+          value={form.guestCccdFrontUrl}
+          onChange={(v) => setForm({ ...form, guestCccdFrontUrl: v })}
+        />
+        <ImageUrlInput
+          label="Ảnh Căn Cước mặt sau"
+          value={form.guestCccdBackUrl}
+          onChange={(v) => setForm({ ...form, guestCccdBackUrl: v })}
+        />
         <DateField label="Từ ngày *" value={form.fromDate} onChange={(v) => setForm({ ...form, fromDate: v })} />
         <DateField label="Đến ngày *" value={form.toDate} onChange={(v) => setForm({ ...form, toDate: v })} />
         <button

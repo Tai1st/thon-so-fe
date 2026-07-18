@@ -66,6 +66,7 @@ export function SecurityTeamResidenceTab({
             <thead>
               <tr className="border-b border-stone-200 bg-stone-50 text-stone-500">
                 <th className="min-w-35 whitespace-nowrap p-3 font-semibold">Người lưu trú</th>
+                <th className="min-w-24 whitespace-nowrap p-3 font-semibold">Ảnh Căn Cước</th>
                 <th className="min-w-30 whitespace-nowrap p-3 font-semibold">Quan hệ</th>
                 <th className="min-w-35 whitespace-nowrap p-3 font-semibold">Hộ đăng ký</th>
                 <th className="min-w-40 whitespace-nowrap p-3 font-semibold">Thời gian lưu trú</th>
@@ -76,7 +77,7 @@ export function SecurityTeamResidenceTab({
             <tbody className="divide-y divide-stone-200/40 text-stone-600">
               {registrations.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-4 text-center text-stone-400">
+                  <td colSpan={7} className="p-4 text-center text-stone-400">
                     Chưa có đăng ký lưu trú nào.
                   </td>
                 </tr>
@@ -88,6 +89,26 @@ export function SecurityTeamResidenceTab({
                       <td className="whitespace-nowrap p-3">
                         <span className="block font-bold text-stone-900">{r.guestName}</span>
                         <span className="font-mono text-[10px] text-stone-400">{r.guestCccd || 'Chưa có Căn Cước'}</span>
+                      </td>
+                      <td className="p-3">
+                        {r.guestCccdFrontUrl || r.guestCccdBackUrl ? (
+                          <div className="flex gap-1.5">
+                            {r.guestCccdFrontUrl && (
+                              <a href={r.guestCccdFrontUrl} target="_blank" rel="noopener">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={r.guestCccdFrontUrl} alt="Mặt trước" className="h-10 w-10 rounded-lg object-cover" />
+                              </a>
+                            )}
+                            {r.guestCccdBackUrl && (
+                              <a href={r.guestCccdBackUrl} target="_blank" rel="noopener">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={r.guestCccdBackUrl} alt="Mặt sau" className="h-10 w-10 rounded-lg object-cover" />
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-stone-300">—</span>
+                        )}
                       </td>
                       <td className="whitespace-nowrap p-3 text-stone-600">{r.relationship}</td>
                       <td className="whitespace-nowrap p-3">

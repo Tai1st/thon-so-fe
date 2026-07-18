@@ -61,6 +61,7 @@ export function SecurityTeamReportsTab({
               <tr className="border-b border-stone-200 bg-stone-50 text-stone-500">
                 <th className="min-w-35 whitespace-nowrap p-3 font-semibold">Hộ báo cáo</th>
                 <th className="min-w-50 whitespace-nowrap p-3 font-semibold">Nội dung</th>
+                <th className="min-w-16 whitespace-nowrap p-3 font-semibold">Ảnh</th>
                 <th className="min-w-30 whitespace-nowrap p-3 font-semibold">Vị trí</th>
                 <th className="min-w-35 whitespace-nowrap p-3 font-semibold">Thời gian</th>
                 <th className="min-w-35 whitespace-nowrap p-3 text-right font-semibold">Thao tác</th>
@@ -69,7 +70,7 @@ export function SecurityTeamReportsTab({
             <tbody className="divide-y divide-stone-200/40 text-stone-600">
               {reports.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-4 text-center text-stone-400">
+                  <td colSpan={6} className="p-4 text-center text-stone-400">
                     Chưa có tin báo nào từ cư dân.
                   </td>
                 </tr>
@@ -81,6 +82,16 @@ export function SecurityTeamReportsTab({
                       <span className="font-mono text-[10px] text-stone-400">{r.familyId}</span>
                     </td>
                     <td className="p-3 text-stone-600">{r.content}</td>
+                    <td className="p-3">
+                      {r.imageUrl ? (
+                        <a href={r.imageUrl} target="_blank" rel="noopener">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={r.imageUrl} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                        </a>
+                      ) : (
+                        <span className="text-stone-300">—</span>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap p-3 text-xs">
                       {r.lat != null ? (
                         <a
